@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>个人应用 - 移动端原型设计</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            display: flex;
+            gap: 30px;
+            max-width: 1400px;
+            width: 100%;
+            align-items: flex-start;
+        }
+
+        /* 移动端预览区域 */
+        .phone-preview {
+            width: 375px;
+            height: 812px;
+            background: #000;
+            border-radius: 40px;
+            padding: 8px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            position: sticky;
+            top: 20px;
+        }
+
+        .phone-screen {
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(180deg, #f5f7fa 0%, #c3cfe2 100%);
+            border-radius: 32px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* 状态栏 */
+        .status-bar {
+            height: 44px;
+            background: rgba(255, 255, 255, 0.95);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 20px;
+            font-size: 14px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        /* 头部区域 */
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 30px 20px 40px;
+            color: white;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .header::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -20%;
+            width: 200px;
+            height: 200px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+        }
+
+        .user-info {
+            position: relative;
+            z-index: 1;
+        }
+
+        .avatar {
+            width: 70px;
+            height: 70px;
+            border-radius: 50%;
+            background: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 32px;
+            margin-bottom: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .user-name {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+
+        .user-desc {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        /* 内容区域 */
+        .content {
+            padding: 20px;
+            padding-bottom: 100px;
+            overflow-y: auto;
+            height: calc(100% - 44px - 150px);
+        }
+
+        /* 快捷功能区 */
+        .quick-actions {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+
+        .quick-action {
+            background: white;
+            border-radius: 16px;
+            padding: 15px 10px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        }
+
+        .quick-action:active {
+            transform: scale(0.95);
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+        }
+
+        .quick-action-icon {
+            width: 40px;
+            height: 40px;
+            margin: 0 auto 8px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            font-weight: bold;
+        }
+
+        .quick-action:nth-child(1) .quick-action-icon {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .quick-action:nth-child(2) .quick-action-icon {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+        }
+
+        .quick-action:nth-child(3) .quick-action-icon {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+        }
+
+        .quick-action:nth-child(4) .quick-action-icon {
+            background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+            color: white;
+        }
+
+        .quick-action-name {
+            font-size: 12px;
+            color: #333;
+            font-weight: 500;
+        }
+
+        /* 功能小程序区域 */
+        .apps-section {
+            margin-bottom: 25px;
+        }
+
+        .section-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: #333;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+        }
+
+        .section-title::before {
+            content: '';
+            width: 4px;
+            height: 18px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 2px;
+            margin-right: 8px;
+        }
+
+        .apps-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+        }
+
+        .app-card {
+            background: white;
+            border-radius: 16px;
+            padding: 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .app-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            transform: scaleX(0);
+            transition: transform 0.3s ease;
+        }
+
+        .app-card:active {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+        }
+
+        .app-card:active::before {
+            transform: scaleX(1);
+        }
+
+        .app-icon {
+            width: 50px;
+            height: 50px;
+            border-radius: 12px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            font-weight: bold;
+            color: white;
+        }
+
+        .app-card:nth-child(1) .app-icon {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .app-card:nth-child(2) .app-icon {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+
+        .app-card:nth-child(3) .app-icon {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        }
+
+        .app-card:nth-child(4) .app-icon {
+            background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+        }
+
+        .app-card:nth-child(5) .app-icon {
+            background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+        }
+
+        .app-card:nth-child(6) .app-icon {
+            background: linear-gradient(135deg, #30cfd0 0%, #330867 100%);
+        }
+
+        .app-name {
+            font-size: 16px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 4px;
+        }
+
+        .app-desc {
+            font-size: 12px;
+            color: #999;
+            line-height: 1.4;
+        }
+
+        /* 底部导航 */
+        .bottom-nav {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 80px;
+            background: white;
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05);
+            padding-bottom: 20px;
+        }
+
+        .nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            flex: 1;
+        }
+
+        .nav-item:active {
+            transform: scale(0.9);
+        }
+
+        .nav-icon {
+            width: 28px;
+            height: 28px;
+            border-radius: 8px;
+            margin-bottom: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            background: #f0f0f0;
+            color: #666;
+        }
+
+        .nav-item.active .nav-icon {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .nav-label {
+            font-size: 11px;
+            color: #666;
+        }
+
+        .nav-item.active .nav-label {
+            color: #667eea;
+            font-weight: 600;
+        }
+
+        /* 设计说明区域 */
+        .design-notes {
+            flex: 1;
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+            max-height: 812px;
+            overflow-y: auto;
+        }
+
+        .design-notes h2 {
+            font-size: 24px;
+            color: #333;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+
+        .note-section {
+            margin-bottom: 25px;
+        }
+
+        .note-section h3 {
+            font-size: 18px;
+            color: #667eea;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+        }
+
+        .note-section h3::before {
+            content: '●';
+            margin-right: 8px;
+            font-size: 12px;
+        }
+
+        .note-section ul {
+            list-style: none;
+            padding-left: 0;
+        }
+
+        .note-section li {
+            padding: 8px 0;
+            padding-left: 20px;
+            position: relative;
+            color: #666;
+            line-height: 1.6;
+        }
+
+        .note-section li::before {
+            content: '→';
+            position: absolute;
+            left: 0;
+            color: #667eea;
+        }
+
+        .color-palette {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .color-item {
+            width: 50px;
+            height: 50px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        /* 响应式设计 */
+        @media (max-width: 1200px) {
+            .container {
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .phone-preview {
+                position: relative;
+                margin-bottom: 30px;
+            }
+
+            .design-notes {
+                max-width: 600px;
+                width: 100%;
+            }
+        }
+
+        /* 滚动条样式 */
+        .content::-webkit-scrollbar,
+        .design-notes::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .content::-webkit-scrollbar-track,
+        .design-notes::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .content::-webkit-scrollbar-thumb,
+        .design-notes::-webkit-scrollbar-thumb {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 2px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- 移动端预览 -->
+        <div class="phone-preview">
+            <div class="phone-screen">
+                <!-- 状态栏 -->
+                <div class="status-bar">
+                    <span>9:41</span>
+                    <span>📶 📶 🔋</span>
+                </div>
+
+                <!-- 头部 -->
+                <div class="header">
+                    <div class="user-info">
+                        <div class="avatar">👤</div>
+                        <div class="user-name">张三</div>
+                        <div class="user-desc">个人应用中心</div>
+                    </div>
+                </div>
+
+                <!-- 内容区域 -->
+                <div class="content">
+                    <!-- 快捷功能 -->
+                    <div class="quick-actions">
+                        <div class="quick-action" onclick="showToast('扫码')">
+                            <div class="quick-action-icon">📷</div>
+                            <div class="quick-action-name">扫码</div>
+                        </div>
+                        <div class="quick-action" onclick="showToast('支付')">
+                            <div class="quick-action-icon">💳</div>
+                            <div class="quick-action-name">支付</div>
+                        </div>
+                        <div class="quick-action" onclick="showToast('消息')">
+                            <div class="quick-action-icon">💬</div>
+                            <div class="quick-action-name">消息</div>
+                        </div>
+                        <div class="quick-action" onclick="showToast('设置')">
+                            <div class="quick-action-icon">⚙️</div>
+                            <div class="quick-action-name">设置</div>
+                        </div>
+                    </div>
+
+                    <!-- 实用工具 -->
+                    <div class="apps-section">
+                        <div class="section-title">实用工具</div>
+                        <div class="apps-grid">
+                            <div class="app-card" onclick="showToast('计算器')">
+                                <div class="app-icon">🔢</div>
+                                <div class="app-name">计算器</div>
+                                <div class="app-desc">快速计算工具</div>
+                            </div>
+                            <div class="app-card" onclick="showToast('天气')">
+                                <div class="app-icon">🌤️</div>
+                                <div class="app-name">天气</div>
+                                <div class="app-desc">实时天气查询</div>
+                            </div>
+                            <div class="app-card" onclick="showToast('翻译')">
+                                <div class="app-icon">🌐</div>
+                                <div class="app-name">翻译</div>
+                                <div class="app-desc">多语言翻译</div>
+                            </div>
+                            <div class="app-card" onclick="showToast('笔记')">
+                                <div class="app-icon">📝</div>
+                                <div class="app-name">笔记</div>
+                                <div class="app-desc">随手记录想法</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 生活服务 -->
+                    <div class="apps-section">
+                        <div class="section-title">生活服务</div>
+                        <div class="apps-grid">
+                            <div class="app-card" onclick="showToast('待办')">
+                                <div class="app-icon">✅</div>
+                                <div class="app-name">待办清单</div>
+                                <div class="app-desc">管理你的任务</div>
+                            </div>
+                            <div class="app-card" onclick="showToast('记账')">
+                                <div class="app-icon">💰</div>
+                                <div class="app-name">记账本</div>
+                                <div class="app-desc">记录日常开支</div>
+                            </div>
+                            <div class="app-card" onclick="showToast('闹钟')">
+                                <div class="app-icon">⏰</div>
+                                <div class="app-name">闹钟</div>
+                                <div class="app-desc">定时提醒</div>
+                            </div>
+                            <div class="app-card" onclick="showToast('健康')">
+                                <div class="app-icon">❤️</div>
+                                <div class="app-name">健康助手</div>
+                                <div class="app-desc">健康数据记录</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 娱乐休闲 -->
+                    <div class="apps-section">
+                        <div class="section-title">娱乐休闲</div>
+                        <div class="apps-grid">
+                            <div class="app-card" onclick="showToast('音乐')">
+                                <div class="app-icon">🎵</div>
+                                <div class="app-name">音乐播放器</div>
+                                <div class="app-desc">享受音乐时光</div>
+                            </div>
+                            <div class="app-card" onclick="showToast('阅读')">
+                                <div class="app-icon">📚</div>
+                                <div class="app-name">阅读器</div>
+                                <div class="app-desc">电子书阅读</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 底部导航 -->
+                <div class="bottom-nav">
+                    <div class="nav-item active" onclick="switchNav(this)">
+                        <div class="nav-icon">🏠</div>
+                        <div class="nav-label">首页</div>
+                    </div>
+                    <div class="nav-item" onclick="switchNav(this)">
+                        <div class="nav-icon">📱</div>
+                        <div class="nav-label">应用</div>
+                    </div>
+                    <div class="nav-item" onclick="switchNav(this)">
+                        <div class="nav-icon">👤</div>
+                        <div class="nav-label">我的</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 设计说明 -->
+        <div class="design-notes">
+            <h2>📱 移动端界面设计说明</h2>
+
+            <div class="note-section">
+                <h3>设计理念</h3>
+                <ul>
+                    <li>采用现代扁平化设计风格，简洁美观</li>
+                    <li>使用渐变色彩增强视觉层次感</li>
+                    <li>注重用户体验，交互流畅自然</li>
+                    <li>一屏展示核心功能，减少滚动操作</li>
+                </ul>
+            </div>
+
+            <div class="note-section">
+                <h3>色彩方案</h3>
+                <div class="color-palette">
+                    <div class="color-item" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);"></div>
+                    <div class="color-item" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);"></div>
+                    <div class="color-item" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);"></div>
+                    <div class="color-item" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);"></div>
+                </div>
+                <ul>
+                    <li>主色调：紫色渐变（#667eea → #764ba2）</li>
+                    <li>辅助色：粉红、蓝色、绿色渐变</li>
+                    <li>背景：浅灰渐变，营造层次感</li>
+                    <li>文字：深灰（#333）和浅灰（#999）</li>
+                </ul>
+            </div>
+
+            <div class="note-section">
+                <h3>布局结构</h3>
+                <ul>
+                    <li>状态栏：显示时间和系统信息</li>
+                    <li>头部区域：用户信息展示，渐变背景</li>
+                    <li>快捷功能区：4个常用功能入口</li>
+                    <li>功能小程序：分类展示，网格布局</li>
+                    <li>底部导航：3个主要导航入口</li>
+                </ul>
+            </div>
+
+            <div class="note-section">
+                <h3>交互设计</h3>
+                <ul>
+                    <li>点击反馈：按下时缩放效果（scale 0.95）</li>
+                    <li>卡片悬停：轻微上浮和阴影增强</li>
+                    <li>顶部装饰线：点击时显示渐变线条</li>
+                    <li>底部导航：激活状态高亮显示</li>
+                    <li>Toast提示：点击功能时显示反馈</li>
+                </ul>
+            </div>
+
+            <div class="note-section">
+                <h3>功能模块</h3>
+                <ul>
+                    <li>快捷功能：扫码、支付、消息、设置</li>
+                    <li>实用工具：计算器、天气、翻译、笔记</li>
+                    <li>生活服务：待办、记账、闹钟、健康</li>
+                    <li>娱乐休闲：音乐、阅读</li>
+                </ul>
+            </div>
+
+            <div class="note-section">
+                <h3>技术特点</h3>
+                <ul>
+                    <li>纯CSS实现，无依赖框架</li>
+                    <li>响应式设计，适配不同屏幕</li>
+                    <li>流畅的动画过渡效果</li>
+                    <li>移动端优先的设计思路</li>
+                    <li>可点击交互，提供用户反馈</li>
+                </ul>
+            </div>
+
+            <div class="note-section">
+                <h3>设计亮点</h3>
+                <ul>
+                    <li>渐变色彩搭配，视觉层次丰富</li>
+                    <li>圆角设计，符合现代审美</li>
+                    <li>卡片式布局，信息组织清晰</li>
+                    <li>图标+文字，直观易懂</li>
+                    <li>阴影效果，增强空间感</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Toast提示功能
+        function showToast(message) {
+            // 创建toast元素
+            const toast = document.createElement('div');
+            toast.textContent = message;
+            toast.style.cssText = `
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                background: rgba(0, 0, 0, 0.8);
+                color: white;
+                padding: 15px 30px;
+                border-radius: 25px;
+                font-size: 16px;
+                z-index: 10000;
+                animation: fadeInOut 2s ease;
+                pointer-events: none;
+            `;
+            
+            // 添加动画
+            const style = document.createElement('style');
+            style.textContent = `
+                @keyframes fadeInOut {
+                    0%, 100% { opacity: 0; transform: translate(-50%, -50%) scale(0.8); }
+                    20%, 80% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+                }
+            `;
+            document.head.appendChild(style);
+            
+            document.body.appendChild(toast);
+            
+            // 2秒后移除
+            setTimeout(() => {
+                toast.remove();
+            }, 2000);
+        }
+
+        // 底部导航切换
+        function switchNav(element) {
+            // 移除所有active类
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            // 添加active类到当前元素
+            element.classList.add('active');
+            showToast(element.querySelector('.nav-label').textContent);
+        }
+    </script>
+</body>
+</html>
