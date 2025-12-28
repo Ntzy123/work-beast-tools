@@ -80,7 +80,9 @@
 			canvas-id="watermarkCanvas" 
 			id="watermarkCanvas"
 			:style="{ width: canvasWidth + 'px', height: canvasHeight + 'px', position: 'fixed', left: '-9999px', top: '-9999px', pointerEvents: 'none', zIndex: -1 }"
-		></canvas>
+		>
+		<!-- Android兼容性提示：确保Canvas宽高正确设置 -->
+		</canvas>
 		
 		<!-- 图片预览弹窗 -->
 		<view class="image-preview-modal" v-if="showPreview" @click="closePreview">
@@ -112,6 +114,7 @@
 import QRCode from 'qrcode'
 import CryptoJS from 'crypto-js'
 import staffMap from '@/utils/staffMap.json'
+import piexif from 'piexifjs'
 
 export default {
 	data() {
@@ -206,13 +209,30 @@ export default {
 			}
 		},
 		
+		// 生成随机7位数员工ID（不与staffMap中的ID重复）
+		generateRandomStaffId() {
+			const existingIds = Object.values(staffMap)
+			let randomId
+			let attempts = 0
+			const maxAttempts = 100 // 防止无限循环
+			
+			do {
+				// 生成7位数随机ID (1000000 - 9999999)
+				randomId = Math.floor(Math.random() * 9000000) + 1000000
+				attempts++
+			} while (existingIds.includes(randomId) && attempts < maxAttempts)
+			
+			console.log('随机生成员工ID:', randomId)
+			return randomId
+		},
+		
 		// 生成加密的二维码文本
 		generateQRCodeText() {
-			// 1. 获取员工ID
-			const staffId = staffMap[this.formData.name]
+			// 1. 获取员工ID（如果找不到则随机生成）
+			let staffId = staffMap[this.formData.name]
 			if (!staffId) {
-				console.error('未找到该员工的ID:', this.formData.name)
-				return null
+				console.warn('未找到该员工的ID:', this.formData.name, '，将使用随机ID')
+				staffId = this.generateRandomStaffId()
 			}
 			
 			// 2. 生成Unix时间戳（秒）
@@ -347,7 +367,7 @@ export default {
 			uni.getImageInfo({
 				src: this.imagePath,
 				success: (imageInfo) => {
-					// --- 标准化处理：固定宽度为 1080px ---
+				// --- 标准化处理：固定宽度为 1080px ---
 					const targetWidth = 1080
 					const targetHeight = (imageInfo.height / imageInfo.width) * targetWidth
 					
@@ -355,10 +375,15 @@ export default {
 					this.canvasWidth = targetWidth
 					this.canvasHeight = targetHeight
 					
-					// 等待下一帧确保canvas尺寸更新
-					this.$nextTick(() => {
-						const ctx = uni.createCanvasContext('watermarkCanvas', this)
-						
+					console.log(`Canvas尺寸设置: ${targetWidth}x${targetHeight}`)
+					console.log(`原图尺寸: ${imageInfo.width}x${imageInfo.height}`)
+					
+				// 等待下一帧确保canvas尺寸更新
+				this.$nextTick(() => {
+					console.log('开始创建Canvas上下文')
+					const ctx = uni.createCanvasContext('watermarkCanvas', this)
+					console.log('Canvas上下文创建成功')
+					
 					// 计算缩放比例（以标准化后的 1080px 为基准）
 					const scale = targetWidth / 750
 						
@@ -514,7 +539,6 @@ export default {
 					ctx.fillText(location, locBoxX + 62, locTextY) // 图标宽度24 + 间距38 = 62px
 						
 						// 3. 绘制右下角二维码
-						// 使用 qrcode 库生成矩阵数据，然后手动绘制（兼容 Uni-app Canvas）
 						try {
 							// 动态生成加密的二维码文本
 							const qrCodeText = this.generateQRCodeText()
@@ -522,9 +546,13 @@ export default {
 								throw new Error('无法生成二维码文本，请检查员工姓名是否正确')
 							}
 							
+							console.log('开始生成二维码，文本长度:', qrCodeText.length)
+							
 							const qrData = QRCode.create(qrCodeText, {
 								errorCorrectionLevel: 'L' // 7% 容错率
 							})
+							
+							console.log(`二维码数据生成成功: 版本${qrData.version}, 模块数${qrData.modules.size}x${qrData.modules.size}`)
 							
 							const modules = qrData.modules.data
 							const mCount = qrData.modules.size
@@ -538,51 +566,68 @@ export default {
 							const qrX = targetWidth - qrSize
 							const qrY = targetHeight - qrSize
 							
-					// 1. 绘制白色背景
-						ctx.setFillStyle('#ffffff')
-						ctx.fillRect(qrX, qrY, qrSize, qrSize)
-						
-						// 2. 绘制黑色模块
-						ctx.setFillStyle('#000000')
-						for (let row = 0; row < mCount; row++) {
-							for (let col = 0; col < mCount; col++) {
-								// modules.data 是一维数组，需要转换索引
-								const index = row * mCount + col
-								if (modules[index]) {
-									// 使用像素边界对齐算法，避免出现缝隙
-									const x1 = Math.floor(qrX + margin + col * moduleSize)
-									const y1 = Math.floor(qrY + margin + row * moduleSize)
-									const x2 = Math.floor(qrX + margin + (col + 1) * moduleSize)
-									const y2 = Math.floor(qrY + margin + (row + 1) * moduleSize)
-									ctx.fillRect(x1, y1, x2 - x1, y2 - y1)
+							console.log(`二维码参数: 位置(${qrX}, ${qrY}), 尺寸${qrSize}x${qrSize}, 模块大小${moduleSize.toFixed(2)}px`)
+							
+							// 1. 绘制白色背景
+							ctx.setFillStyle('#ffffff')
+							ctx.fillRect(qrX, qrY, qrSize, qrSize)
+							console.log('白色背景绘制完成')
+							
+							// 2. 绘制黑色模块
+							ctx.setFillStyle('#000000')
+							let rectCount = 0
+							
+							for (let row = 0; row < mCount; row++) {
+								for (let col = 0; col < mCount; col++) {
+									const index = row * mCount + col
+									if (modules[index]) {
+										// 使用像素边界对齐算法，避免出现缝隙
+										const x1 = Math.floor(qrX + margin + col * moduleSize)
+										const y1 = Math.floor(qrY + margin + row * moduleSize)
+										const x2 = Math.floor(qrX + margin + (col + 1) * moduleSize)
+										const y2 = Math.floor(qrY + margin + (row + 1) * moduleSize)
+										const w = x2 - x1
+										const h = y2 - y1
+										
+										// 确保宽高至少为1像素
+										if (w > 0 && h > 0) {
+											ctx.fillRect(x1, y1, w, h)
+											rectCount++
+										}
+									}
 								}
 							}
-						}
-						console.log(`二维码生成成功: 版本 ${qrData.version}, 模块数 ${mCount}x${mCount}, 尺寸 ${qrSize}px, 边距 ${margin}px`)
+							console.log(`二维码绘制完成: 共绘制${rectCount}个黑色模块`)
+							
 					} catch (qrErr) {
 						console.error('二维码生成异常:', qrErr)
+						console.error('错误详情:', qrErr.message)
+						console.error('错误堆栈:', qrErr.stack)
 					}
 					
 					// 统一绘制所有内容到画布
+					console.log('准备调用ctx.draw()提交绘制')
 						ctx.draw(false, () => {
-							// 将canvas转为图片
+							console.log('ctx.draw()回调执行，Canvas绘制已提交')
+							// 将canvas转为图片（jpg格式）
 							setTimeout(() => {
+								console.log('开始调用canvasToTempFilePath')
 								uni.canvasToTempFilePath({
 									canvasId: 'watermarkCanvas',
 									width: targetWidth,
 									height: targetHeight,
 									destWidth: targetWidth,
 									destHeight: targetHeight,
+									fileType: 'jpg', // 指定输出为jpg格式
+									quality: 0.9,    // 图片质量（0-1，默认0.9）
 									success: (res) => {
-										this.resultImage = res.tempFilePath
-										uni.hideLoading()
-										uni.showToast({
-											title: '生成成功',
-											icon: 'success'
-										})
+										console.log('canvasToTempFilePath成功，临时文件路径:', res.tempFilePath)
+										// 处理EXIF数据
+										this.processImageWithExif(res.tempFilePath)
 									},
 									fail: (err) => {
-										console.error('生成失败', err)
+										console.error('canvasToTempFilePath失败:', err)
+										console.error('错误码:', err.errMsg)
 										uni.hideLoading()
 										uni.showToast({
 											title: '生成失败',
@@ -619,15 +664,219 @@ export default {
 			ctx.closePath()
 			ctx.fill()
 		},
+		// 生成时间戳文件名（格式：年月日时分秒.jpg）
+		// 使用用户选择的时间，而不是当前时间
+		generateTimestampFileName() {
+			// 使用用户选择的日期和时间
+			const dateStr = this.formData.date // 格式：YYYY-MM-DD
+			const [year, month, day] = dateStr.split('-')
+			const hour = this.formData.time.hour
+			const minute = this.formData.time.minute
+			const second = this.formData.time.second
+			return `${year}${month}${day}${hour}${minute}${second}.jpg`
+		},
+		
+		// 将用户选择的时间转换为EXIF格式（YYYY:MM:DD HH:MM:SS）
+		generateExifDateTime() {
+			const dateStr = this.formData.date // YYYY-MM-DD
+			const hour = this.formData.time.hour
+			const minute = this.formData.time.minute
+			const second = this.formData.time.second
+			return `${dateStr.replace(/-/g, ':')} ${hour}:${minute}:${second}`
+		},
+		
+		// 为图片添加EXIF数据
+		addExifToImage(base64Image) {
+			try {
+				// 生成EXIF时间字符串
+				const exifDateTime = this.generateExifDateTime()
+				
+				// 创建EXIF对象
+				const zeroth = {}
+				const exif = {}
+				const gps = {}
+				
+				// 写入时间信息
+				exif[piexif.ExifIFD.DateTimeOriginal] = exifDateTime  // 拍摄时间
+				exif[piexif.ExifIFD.DateTimeDigitized] = exifDateTime // 数字化时间
+				zeroth[piexif.ImageIFD.DateTime] = exifDateTime        // 修改时间
+				
+				// 写入软件信息（可选）
+				zeroth[piexif.ImageIFD.Software] = 'WatermarkTool'
+				
+				// 如果需要写入GPS坐标（可选）
+				// 注意：这里的坐标是用于加密的随机坐标，如果不想暴露可以不写入
+				// const coords = this.generateRandomCoordinates()
+				// gps[piexif.GPSIFD.GPSLatitude] = piexif.GPSHelper.degToDmsRational(coords.latitude)
+				// gps[piexif.GPSIFD.GPSLongitude] = piexif.GPSHelper.degToDmsRational(coords.longitude)
+				
+				// 组装EXIF数据
+				const exifObj = {
+					'0th': zeroth,
+					'Exif': exif,
+					'GPS': gps
+				}
+				
+				// 转换为二进制
+				const exifBytes = piexif.dump(exifObj)
+				
+				// 插入EXIF到图片
+				const newBase64 = piexif.insert(exifBytes, base64Image)
+				
+				return newBase64
+			} catch (err) {
+				console.error('添加EXIF失败:', err)
+				// 如果添加EXIF失败，返回原图
+				return base64Image
+			}
+		},
+		
+		// 处理图片并添加EXIF数据
+		processImageWithExif(tempFilePath) {
+			// #ifdef H5
+			// H5环境：将Canvas输出转换为Base64，添加EXIF后再转回Blob URL
+			if (tempFilePath.startsWith('data:image')) {
+				// 已经是Base64格式
+				try {
+					const base64WithExif = this.addExifToImage(tempFilePath)
+					this.resultImage = base64WithExif
+					uni.hideLoading()
+					uni.showToast({
+						title: '生成成功',
+						icon: 'success'
+					})
+				} catch (err) {
+					console.error('EXIF处理失败:', err)
+					// 降级：使用原图
+					this.resultImage = tempFilePath
+					uni.hideLoading()
+					uni.showToast({
+						title: '生成成功',
+						icon: 'success'
+					})
+				}
+			} else {
+				// Blob URL，需要转换为Base64
+				fetch(tempFilePath)
+					.then(res => res.blob())
+					.then(blob => {
+						const reader = new FileReader()
+						reader.onload = (e) => {
+							try {
+								const base64 = e.target.result
+								const base64WithExif = this.addExifToImage(base64)
+								this.resultImage = base64WithExif
+								uni.hideLoading()
+								uni.showToast({
+									title: '生成成功',
+									icon: 'success'
+								})
+							} catch (err) {
+								console.error('EXIF处理失败:', err)
+								this.resultImage = tempFilePath
+								uni.hideLoading()
+								uni.showToast({
+									title: '生成成功',
+									icon: 'success'
+								})
+							}
+						}
+						reader.readAsDataURL(blob)
+					})
+					.catch(err => {
+						console.error('读取图片失败:', err)
+						this.resultImage = tempFilePath
+						uni.hideLoading()
+						uni.showToast({
+							title: '生成成功',
+							icon: 'success'
+						})
+					})
+			}
+			// #endif
+			
+			// #ifndef H5
+			// APP环境：读取文件，添加EXIF，保存为新文件
+			plus.io.resolveLocalFileSystemURL(tempFilePath, (entry) => {
+				entry.file((file) => {
+					const reader = new plus.io.FileReader()
+					reader.onloadend = (e) => {
+						try {
+							const base64 = e.target.result
+							const base64WithExif = this.addExifToImage(base64)
+							
+							// 将Base64保存为新的临时文件
+							const newFileName = '_temp_exif_' + Date.now() + '.jpg'
+							const newFilePath = entry.filesystem.root.toLocalURL() + newFileName
+							
+							// 转换Base64为二进制数据并写入文件
+							const base64Data = base64WithExif.split(',')[1]
+							const byteCharacters = atob(base64Data)
+							const byteNumbers = new Array(byteCharacters.length)
+							for (let i = 0; i < byteCharacters.length; i++) {
+								byteNumbers[i] = byteCharacters.charCodeAt(i)
+							}
+							const byteArray = new Uint8Array(byteNumbers)
+							
+							entry.filesystem.root.getFile(newFileName, { create: true }, (newEntry) => {
+								newEntry.createWriter((writer) => {
+									writer.onwrite = () => {
+										this.resultImage = newEntry.toLocalURL()
+										uni.hideLoading()
+										uni.showToast({
+											title: '生成成功',
+											icon: 'success'
+										})
+									}
+									writer.onerror = (err) => {
+										console.error('写入文件失败:', err)
+										// 降级：使用原图
+										this.resultImage = tempFilePath
+										uni.hideLoading()
+										uni.showToast({
+											title: '生成成功',
+											icon: 'success'
+										})
+									}
+									writer.write(byteArray.buffer)
+								})
+							})
+						} catch (err) {
+							console.error('EXIF处理失败:', err)
+							// 降级：使用原图
+							this.resultImage = tempFilePath
+							uni.hideLoading()
+							uni.showToast({
+								title: '生成成功',
+								icon: 'success'
+							})
+						}
+					}
+					reader.readAsDataURL(file)
+				})
+			}, (err) => {
+				console.error('读取文件失败:', err)
+				// 降级：使用原图
+				this.resultImage = tempFilePath
+				uni.hideLoading()
+				uni.showToast({
+					title: '生成成功',
+					icon: 'success'
+				})
+			})
+			// #endif
+		},
+		
 		saveImage() {
 			if (!this.resultImage) return
 			
 			// #ifdef H5
-			// H5 环境下，使用 a 标签模拟下载
+			// H5 环境：使用浏览器下载，文件名为时间戳格式
 			try {
+				const fileName = this.generateTimestampFileName()
 				const link = document.createElement('a')
 				link.href = this.resultImage
-				link.download = `watermark_${Date.now()}.png`
+				link.download = fileName
 				document.body.appendChild(link)
 				link.click()
 				document.body.removeChild(link)
@@ -646,24 +895,128 @@ export default {
 			// #endif
 
 			// #ifndef H5
-			uni.saveImageToPhotosAlbum({
-				filePath: this.resultImage,
-				success: () => {
-					uni.showToast({
-						title: '保存成功',
-						icon: 'success'
-					})
-				},
-				fail: (err) => {
-					console.error('保存失败详情:', err)
-					uni.showToast({
-						title: '保存失败',
-						icon: 'none'
-					})
-				}
-			})
+			// APP环境：保存到指定目录 /storage/emulated/0/lebang/waterimages/
+			this.saveImageToCustomPath()
 			// #endif
 		},
+		
+		// #ifndef H5
+		// APP端保存到自定义路径
+		saveImageToCustomPath() {
+			// 获取内部存储根目录（Android: /storage/emulated/0/）
+			const publicDocsPath = plus.io.PUBLIC_DOCUMENTS
+			const storagePath = publicDocsPath.replace('/Documents', '') // 获取 /storage/emulated/0
+			const basePath = `${storagePath}/lebang/waterimages` // 内部存储/lebang/waterimages
+			let fileName = this.generateTimestampFileName()
+			
+			console.log('目标保存路径:', basePath)
+			
+			// 递归创建目录
+			const createDirRecursive = (path, callback) => {
+				plus.io.resolveLocalFileSystemURL(path, 
+					(entry) => {
+						// 目录已存在
+						callback(true, entry)
+					}, 
+					(err) => {
+						// 目录不存在，创建
+						const parentPath = path.substring(0, path.lastIndexOf('/'))
+						createDirRecursive(parentPath, (success, parentEntry) => {
+							if (success && parentEntry) {
+								const dirName = path.substring(path.lastIndexOf('/') + 1)
+								parentEntry.getDirectory(dirName, { create: true }, 
+									(newEntry) => {
+										callback(true, newEntry)
+									},
+									(createErr) => {
+										console.error('创建目录失败:', createErr)
+										callback(false, null)
+									}
+								)
+							} else {
+								callback(false, null)
+							}
+						})
+					}
+				)
+			}
+			
+			// 检查并调整文件名（避免重名）
+			const getUniqueFileName = (baseFileName, callback) => {
+				const finalPath = `${basePath}/${baseFileName}`
+				plus.io.resolveLocalFileSystemURL(finalPath,
+					(entry) => {
+						// 文件存在，递增最后一位数字
+						const nameWithoutExt = baseFileName.replace('.jpg', '')
+						const lastChar = nameWithoutExt[nameWithoutExt.length - 1]
+						const newLastChar = String((parseInt(lastChar) + 1) % 10)
+						const newFileName = nameWithoutExt.substring(0, nameWithoutExt.length - 1) + newLastChar + '.jpg'
+						getUniqueFileName(newFileName, callback) // 递归检查
+					},
+					(err) => {
+						// 文件不存在，可以使用
+						callback(baseFileName, finalPath)
+					}
+				)
+			}
+			
+			// 1. 创建目录
+			createDirRecursive(basePath, (dirSuccess, dirEntry) => {
+				if (!dirSuccess) {
+					uni.showToast({
+						title: '创建目录失败',
+						icon: 'none'
+					})
+					return
+				}
+				
+				// 2. 获取唯一文件名
+				getUniqueFileName(fileName, (finalFileName, finalPath) => {
+					// 3. 复制临时文件到目标路径
+					plus.io.resolveLocalFileSystemURL(this.resultImage, 
+						(entry) => {
+							entry.copyTo(dirEntry, finalFileName, 
+								(newEntry) => {
+									uni.showToast({
+										title: '保存成功',
+										icon: 'success'
+									})
+									console.log('文件已保存到:', newEntry.fullPath)
+								},
+								(err) => {
+									console.error('文件复制失败:', err)
+									// 如果复制失败，尝试保存到相册
+									uni.saveImageToPhotosAlbum({
+										filePath: this.resultImage,
+										success: () => {
+											uni.showToast({
+												title: '已保存到相册',
+												icon: 'success'
+											})
+										},
+										fail: (albumErr) => {
+											console.error('保存到相册也失败:', albumErr)
+											uni.showToast({
+												title: '保存失败',
+												icon: 'none'
+											})
+										}
+									})
+								}
+							)
+						},
+						(err) => {
+							console.error('无法访问临时文件:', err)
+							uni.showToast({
+								title: '保存失败',
+								icon: 'none'
+							})
+						}
+					)
+				})
+			})
+		},
+		// #endif
 		
 	// ===== 图片预览相关方法 =====
 	previewImage(url) {

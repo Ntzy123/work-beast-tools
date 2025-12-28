@@ -5,6 +5,10 @@
 		
 		<!-- 头部区域 -->
 		<view class="header">
+			<!-- 扫一扫按钮 -->
+			<view class="scan-btn" @click="handleScan">
+				<text class="scan-icon">📷</text>
+			</view>
 			<!-- 设置按钮 -->
 			<view class="settings-btn" @click="handleSettings">
 				<text class="settings-icon">⚙️</text>
@@ -88,6 +92,11 @@ export default {
 		this.statusBarHeight = systemInfo.statusBarHeight || 0
 	},
 	methods: {
+		handleScan() {
+			uni.navigateTo({
+				url: '/pages/scan/index'
+			})
+		},
 		handleSettings() {
 			uni.showToast({
 				title: '设置',
@@ -222,6 +231,29 @@ export default {
 	color: white;
 	position: relative;
 	overflow: hidden;
+}
+
+/* 扫一扫按钮 */
+.scan-btn {
+	position: absolute;
+	top: 60rpx;
+	right: 140rpx;
+	width: 80rpx;
+	height: 80rpx;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	z-index: 10;
+	transition: all 0.3s ease;
+}
+
+.scan-btn:active {
+	transform: scale(0.9);
+}
+
+.scan-icon {
+	font-size: 48rpx;
+	opacity: 0.9;
 }
 
 /* 设置按钮 */
