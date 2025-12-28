@@ -9,13 +9,13 @@
 					<text class="upload-icon">📷</text>
 					<text class="upload-text">点击上传图片</text>
 				</view>
-			<view class="image-preview" v-else>
+				<view class="image-preview" v-else>
 				<image :src="imagePath" mode="aspectFit" class="preview-img" @click="previewImage(imagePath)"></image>
-				<view class="image-actions">
-					<view class="action-btn" @click="chooseImage">重新选择</view>
-					<view class="action-btn delete" @click="removeImage">删除</view>
+					<view class="image-actions">
+						<view class="action-btn" @click="chooseImage">重新选择</view>
+						<view class="action-btn delete" @click="removeImage">删除</view>
+					</view>
 				</view>
-			</view>
 			</view>
 
 			<!-- 姓名输入 -->
@@ -158,7 +158,7 @@ export default {
 		startDistance: 0,
 		lastScale: 1,
 		nativeWheelHandler: null  // 存储原生 wheel 事件处理器的引用
-	}
+		}
 	},
 	computed: {
 		canGenerate() {
@@ -355,139 +355,163 @@ export default {
 					this.canvasWidth = targetWidth
 					this.canvasHeight = targetHeight
 					
-				// 等待下一帧确保canvas尺寸更新
-				this.$nextTick(() => {
-					const ctx = uni.createCanvasContext('watermarkCanvas', this)
-					
+					// 等待下一帧确保canvas尺寸更新
+					this.$nextTick(() => {
+						const ctx = uni.createCanvasContext('watermarkCanvas', this)
+						
 					// 计算缩放比例（以标准化后的 1080px 为基准）
 					const scale = targetWidth / 750
-					
-					// 【关键修复】：先绘制原图并等待完成，再绘制水印
-					// 第一步：绘制图片
+						
+					// 第一步：绘制原图
 					ctx.drawImage(this.imagePath, 0, 0, targetWidth, targetHeight)
-					
-					// 等待图片绘制完成（使用 draw 的回调）
-					ctx.draw(false, () => {
-						// 图片绘制完成，继续绘制水印元素
-						// 重新获取 context（确保状态正确）
-						const ctx2 = uni.createCanvasContext('watermarkCanvas', this)
-					
-					// --- 水印样式配置 ---
+						
+						// --- 水印样式配置 ---
 					const edgePadding = 21 // 左边距离屏幕边缘 21px
 					const borderRadius = 16 // 圆角 16px
 					const bgColor = 'rgba(0, 0, 0, 0.3)' // 【透明度修改处】：0.3 表示更透明，数字越小越透明
-					const textColor = '#ffffff'
-					
-					// 1. 绘制上方信息块（时间、姓名、日期）
+						const textColor = '#ffffff'
+						
+						// 1. 绘制上方信息块（时间、姓名、日期）
 					const timeFontSize = 74 // 时间字体 74px
-					ctx2.setFontSize(timeFontSize)
-					const timeText = this.formData.time.hour + ':' + this.formData.time.minute
-					const timeWidth = ctx2.measureText ? ctx2.measureText(timeText).width : 140
-					
+						ctx.setFontSize(timeFontSize)
+						const timeText = this.formData.time.hour + ':' + this.formData.time.minute
+					const timeWidth = ctx.measureText ? ctx.measureText(timeText).width : 140
+						
 					const timeInnerPadding = 15 * scale
-					const textStartX = edgePadding + timeInnerPadding + timeWidth + timeInnerPadding
-					
-					// 准备右侧文本
+						const textStartX = edgePadding + timeInnerPadding + timeWidth + timeInnerPadding
+						
+						// 准备右侧文本
 					const smallFontSize = 30 // 姓名、日期、定位字体 30px
-					ctx2.setFontSize(smallFontSize)
-					const nameText = this.formData.name
-					const dateText = this.formatDate(this.formData.date)
-					const nameWidth = ctx2.measureText ? ctx2.measureText(nameText).width : 80 * scale
-					const dateWidth = ctx2.measureText ? ctx2.measureText(dateText).width : 180 * scale
-					const rightContentWidth = Math.max(nameWidth, dateWidth)
+						ctx.setFontSize(smallFontSize)
+						const nameText = this.formData.name
+						const dateText = this.formatDate(this.formData.date)
+						const nameWidth = ctx.measureText ? ctx.measureText(nameText).width : 80 * scale
+						const dateWidth = ctx.measureText ? ctx.measureText(dateText).width : 180 * scale
+						const rightContentWidth = Math.max(nameWidth, dateWidth)
 						
 					const infoBoxHeight = 106 // 固定高度 106px
 					const infoBoxWidth = 469 // 固定宽度 469px
-					const infoBoxX = edgePadding
+						const infoBoxX = edgePadding
 					
 					// 【位置修改处】：定位框距离底边63px，信息框与定位框间距14px
 					const locBoxHeight = 62 // 定位框高度
 					const bottomMargin = 63 // 定位框距离底边的距离
 					const boxGap = 14 // 信息框与定位框之间的距离
 				const infoBoxY = targetHeight - bottomMargin - locBoxHeight - boxGap - infoBoxHeight
-					
-					this.drawRoundedRect(ctx2, infoBoxX, infoBoxY, infoBoxWidth, infoBoxHeight, borderRadius, bgColor)
-					
+						
+						this.drawRoundedRect(ctx, infoBoxX, infoBoxY, infoBoxWidth, infoBoxHeight, borderRadius, bgColor)
+						
 					// 绘制时间（垂直居中）
-					ctx2.setFillStyle(textColor)
-					ctx2.setFontSize(timeFontSize)
-					ctx2.setTextAlign('left')
+						ctx.setFillStyle(textColor)
+						ctx.setFontSize(timeFontSize)
+						ctx.setTextAlign('left')
 					// 106px 高度，时间垂直居中
 					const timeY = infoBoxY + (infoBoxHeight + timeFontSize) / 2 - 10
-					ctx2.fillText(timeText, infoBoxX + timeInnerPadding, timeY)
-					
+					ctx.fillText(timeText, infoBoxX + timeInnerPadding, timeY)
+						
 					// 绘制姓名和日期（三个间距保持一致）
-					ctx2.setFontSize(smallFontSize)
+						ctx.setFontSize(smallFontSize)
 					// 框高106px，两行文字（30px），三个间距相等
 					// 计算：(106 - 60) / 3 ≈ 15.33px
 					// 姓名：上边距15.33px + baseline偏移24px ≈ 39px
 					const nameY = infoBoxY + 43
 					// 日期：15.33px + 30px + 15.33px + 24px ≈ 85px
 					const dateY = infoBoxY + 89
-					ctx2.fillText(nameText, textStartX, nameY)
-					ctx2.fillText(dateText, textStartX, dateY)
+					ctx.fillText(nameText, textStartX, nameY)
+					ctx.fillText(dateText, textStartX, dateY)
 						
 				// 2. 绘制下方定位块（使用相同的圆角和左边距，宽度自适应）
 				// locBoxHeight 已在上方定义为 62
 				const locBoxY = targetHeight - bottomMargin - locBoxHeight // 【位置修改处】：距离底边63px
-				const location = 'Q贵阳首钢贵州之光一期'
-					
-					ctx2.setFontSize(smallFontSize)
-					const locTextWidth = ctx2.measureText ? ctx2.measureText(location).width : 250
-					const locIconSpace = 50 * scale // 定位图标和间距占用
+						const location = 'Q贵阳首钢贵州之光一期'
+						
+						ctx.setFontSize(smallFontSize)
+					const locTextWidth = ctx.measureText ? ctx.measureText(location).width : 250
+					const locIconSpace = 62 // 定位图标和间距占用（图标24px + 间距38px = 62px）
 					const locBoxWidth = locIconSpace + locTextWidth + 20 // 文字右边距离右边框 20px
 					const locBoxX = edgePadding // 使用相同的左边距 21px
 					
-					this.drawRoundedRect(ctx2, locBoxX, locBoxY, locBoxWidth, locBoxHeight, borderRadius, bgColor)
+					this.drawRoundedRect(ctx, locBoxX, locBoxY, locBoxWidth, locBoxHeight, borderRadius, bgColor)
 					
 				// 绘制定位图标（水滴形，白色填充，中间圆形空洞）
-				const iconWidth = 24 * scale // 圆形部分宽度 24px
-				const iconHeight = iconWidth * 1.4 // 高度比例约 1.4
-				const iconRadius = iconWidth / 2 // 圆形半径
-				const holeRadius = iconRadius * 0.45 // 空洞半径（约 5.4px）
 				
-				// 绘制位置（垂直居中）
-				const iconCenterX = locBoxX + 12 * scale
-				const iconCenterY = locBoxY + locBoxHeight / 2
+				// 【尺寸参数】（直接使用真实像素值，不缩放）
+				const iconCircleDiameter = 24   // 圆形部分直径 = 24px
+				const iconCircleRadius = iconCircleDiameter / 2 // 圆形半径 = 12px
+				const iconTotalHeight = 30      // 整体图标高度 = 30px
+				const iconTipDistance = iconTotalHeight - iconCircleRadius // 底部尖角距离圆心 = 30 - 12 = 18px
+				const iconTipWidth = 2.5        // 底部尖角宽度 = 2.5px
+				const iconHoleRadius = iconCircleRadius * 0.33 // 中间空洞半径 = 3.96px
 				
-				ctx2.save()
-				ctx2.translate(iconCenterX, iconCenterY - iconHeight * 0.2) // 向上偏移一点
+				// 【位置参数】
+				const iconCenterX = locBoxX + 36 // 距离定位框左边缘 36px（12 + 24）
+				const iconCircleCenterY = locBoxY + locBoxHeight / 2 - 3 // 圆心位置（略微上移）
 				
-				// 1. 绘制外部水滴形状（白色）
-				ctx2.beginPath()
-				// 上半部分：半圆（从 -90° 到 270°，即顶部到两侧）
-				ctx2.arc(0, 0, iconRadius, -Math.PI / 2, Math.PI / 2, false)
-				// 右侧：贝塞尔曲线到底部尖角
-				ctx2.bezierCurveTo(
-					iconRadius * 0.5, iconRadius * 0.8,   // 控制点1（右侧中部）
-					iconRadius * 0.3, iconRadius * 1.8,   // 控制点2（右侧下部）
-					0, iconHeight * 0.8                    // 底部尖角
+						ctx.save()
+				ctx.translate(iconCenterX, iconCircleCenterY) // 移动坐标系原点到圆心位置
+				
+				// 【步骤1】绘制外部水滴形状（白色）
+						ctx.beginPath()
+				
+				// (1) 上半部分：圆弧（从左侧180°到右侧0°）
+				// 起点：(-12, 0) → 终点：(12, 0)
+				ctx.arc(
+					0, 0,             // 圆心 (0, 0)
+					iconCircleRadius, // 半径 12px
+					Math.PI,          // 起始角度 180°（左侧）
+					0,                // 结束角度 0°（右侧）
+					false             // 顺时针
 				)
-				// 左侧：贝塞尔曲线回到顶部
-				ctx2.bezierCurveTo(
-					-iconRadius * 0.3, iconRadius * 1.8,  // 控制点1（左侧下部）
-					-iconRadius * 0.5, iconRadius * 0.8,  // 控制点2（左侧中部）
-					-iconRadius, 0                         // 回到左侧半圆起点
+				// 画笔当前位置：(12, 0)
+				
+				// (2) 右侧：贝塞尔曲线从右侧圆弧端点到底部尖角右侧
+				// 起点：(12, 0) → 终点：(iconTipWidth/2, iconTipDistance - 1)
+				const tipHalfWidth = iconTipWidth / 2 // 尖角半宽 = 1.25px
+				const tipY = iconTipDistance - 1      // 尖角顶部 Y 坐标（留1px给圆角）
+				ctx.bezierCurveTo(
+					iconCircleRadius * 0.65, iconCircleRadius * 0.9,  // 控制点1：(7.8, 10.8) 右侧上部
+					iconCircleRadius * 0.3,  tipY - 4,                // 控制点2：(3.6, 13) 右侧下部
+					tipHalfWidth,            tipY                     // 终点：(1.25, 17) 尖角右侧
 				)
-				ctx2.closePath()
-				ctx2.setFillStyle('#ffffff')
-				ctx2.fill()
+				// 画笔当前位置：(1.25, 17)
 				
-				// 2. 绘制中间圆形空洞（完全透明）
-				ctx2.globalCompositeOperation = 'destination-out'
-				ctx2.beginPath()
-				ctx2.arc(0, 0, holeRadius, 0, Math.PI * 2)
-				ctx2.setFillStyle('#ffffff')
-				ctx2.fill()
-				ctx2.globalCompositeOperation = 'source-over'
+				// (3) 底部：小圆角连接（让尖角变钝）
+				// 从 (1.25, 17) 经过圆角到 (-1.25, 17)
+				ctx.arcTo(
+					0,            iconTipDistance,     // 控制点：(0, 18) 底部中心
+					-tipHalfWidth, tipY,               // 目标点：(-1.25, 17) 尖角左侧
+					1                                  // 圆角半径 1px
+				)
+				// 画笔当前位置：(-1.25, 17)
 				
-				ctx2.restore()
-					
+				// (4) 左侧：贝塞尔曲线从底部尖角左侧回到左侧圆弧起点
+				// 起点：(-1.25, 17) → 终点：(-12, 0)
+				ctx.bezierCurveTo(
+					-iconCircleRadius * 0.3,  tipY - 4,               // 控制点1：(-3.6, 13) 左侧下部
+					-iconCircleRadius * 0.65, iconCircleRadius * 0.9, // 控制点2：(-7.8, 10.8) 左侧上部
+					-iconCircleRadius,        0                       // 终点：(-12, 0) 回到左侧
+				)
+				// 画笔当前位置：(-12, 0)，与起点重合
+				
+				ctx.closePath() // 闭合路径
+						ctx.setFillStyle('#ffffff')
+						ctx.fill()
+				
+				// 【步骤2】绘制中间圆形空洞（完全透明）
+				ctx.globalCompositeOperation = 'destination-out'
+				ctx.beginPath()
+				ctx.arc(0, 0, iconHoleRadius, 0, Math.PI * 2) // 圆心 (0, 0)，半径 3.96px
+				ctx.setFillStyle('#ffffff')
+				ctx.fill()
+				ctx.globalCompositeOperation = 'source-over'
+				
+						ctx.restore()
+						
 					// 绘制定位文字（垂直居中）
-					ctx2.setFillStyle('#ffffff')
-					ctx2.setFontSize(smallFontSize) // 确保使用 30px 字体
+						ctx.setFillStyle('#ffffff')
+					ctx.setFontSize(smallFontSize) // 确保使用 30px 字体
 					const locTextY = locBoxY + (locBoxHeight + smallFontSize) / 2 - 4
-					ctx2.fillText(location, locBoxX + 50 * scale, locTextY)
+					ctx.fillText(location, locBoxX + 62, locTextY) // 图标宽度24 + 间距38 = 62px
 						
 						// 3. 绘制右下角二维码
 						// 使用 qrcode 库生成矩阵数据，然后手动绘制（兼容 Uni-app Canvas）
@@ -515,11 +539,11 @@ export default {
 							const qrY = targetHeight - qrSize
 							
 					// 1. 绘制白色背景
-						ctx2.setFillStyle('#ffffff')
-						ctx2.fillRect(qrX, qrY, qrSize, qrSize)
+						ctx.setFillStyle('#ffffff')
+						ctx.fillRect(qrX, qrY, qrSize, qrSize)
 						
 						// 2. 绘制黑色模块
-						ctx2.setFillStyle('#000000')
+						ctx.setFillStyle('#000000')
 						for (let row = 0; row < mCount; row++) {
 							for (let col = 0; col < mCount; col++) {
 								// modules.data 是一维数组，需要转换索引
@@ -530,7 +554,7 @@ export default {
 									const y1 = Math.floor(qrY + margin + row * moduleSize)
 									const x2 = Math.floor(qrX + margin + (col + 1) * moduleSize)
 									const y2 = Math.floor(qrY + margin + (row + 1) * moduleSize)
-									ctx2.fillRect(x1, y1, x2 - x1, y2 - y1)
+									ctx.fillRect(x1, y1, x2 - x1, y2 - y1)
 								}
 							}
 						}
@@ -539,8 +563,8 @@ export default {
 						console.error('二维码生成异常:', qrErr)
 					}
 					
-					// 【关键修复】：第二步，绘制所有水印元素并导出图片
-					ctx2.draw(true, () => {
+					// 统一绘制所有内容到画布
+						ctx.draw(false, () => {
 							// 将canvas转为图片
 							setTimeout(() => {
 								uni.canvasToTempFilePath({
@@ -568,8 +592,7 @@ export default {
 								}, this)
 							}, 500)
 						})
-					}) // 关闭 ctx2.draw 回调
-					}) // 关闭 ctx.draw 回调（图片绘制完成）
+					}) // 关闭 $nextTick 回调
 				},
 				fail: () => {
 					uni.hideLoading()
