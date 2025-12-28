@@ -72,6 +72,13 @@
 				<view class="result-actions">
 					<button class="save-btn" @click="saveImage">保存图片</button>
 				</view>
+				
+				<!-- 保存状态显示（手机端可见） -->
+				<view class="save-status-box" v-if="showSaveStatus">
+					<view class="status-title">📋 保存状态</view>
+					<text class="status-text">{{ saveStatus }}</text>
+					<button class="close-status-btn" @click="showSaveStatus = false">关闭</button>
+				</view>
 			</view>
 			</view>
 
@@ -169,7 +176,10 @@ export default {
 		lastTranslateY: 0,
 		startDistance: 0,
 		lastScale: 1,
-		nativeWheelHandler: null  // 存储原生 wheel 事件处理器的引用
+		nativeWheelHandler: null,  // 存储原生 wheel 事件处理器的引用
+		// 保存状态追踪
+		saveStatus: '',
+		showSaveStatus: false
 		}
 	},
 	computed: {
@@ -363,7 +373,6 @@ export default {
 			this.generateWatermark()
 		},
 		generateWatermark() {
-
 			uni.showLoading({
 				title: '生成中...'
 			})
@@ -467,72 +476,21 @@ export default {
 					
 					this.drawRoundedRect(ctx, locBoxX, locBoxY, locBoxWidth, locBoxHeight, borderRadius, bgColor)
 					
-				// 绘制定位图标（水滴形，白色填充，中间圆形空洞）
-				// 【兼容性修改】分两步绘制，先画水滴，再画背景色圆覆盖
+				// 绘制定位图标（使用 PNG 图片，完美支持透明）
+				// 【PNG 方案】兼容性最好，H5 和 APP 都完美支持透明效果
 				
-				// 【尺寸参数】（直接使用真实像素值，不缩放）
-				const iconCircleDiameter = 24   // 圆形部分直径 = 24px
-				const iconCircleRadius = iconCircleDiameter / 2 // 圆形半径 = 12px
-				const iconTotalHeight = 30      // 整体图标高度 = 30px
-				const iconTipDistance = iconTotalHeight - iconCircleRadius // 底部尖角距离圆心 = 30 - 12 = 18px
-				const iconTipWidth = 2.5        // 底部尖角宽度 = 2.5px
-				const iconHoleRadius = iconCircleRadius * 0.33 // 中间空洞半径 = 3.96px
+				const iconSize = 24 // 图标显示尺寸 24x24px
+				const iconX = locBoxX + 18 // 距离定位框左边缘 18px
+				const iconY = locBoxY + (locBoxHeight - iconSize) / 2 // 垂直居中
 				
-				// 【位置参数】
-				const iconCenterX = locBoxX + 36 // 距离定位框左边缘 36px（12 + 24）
-				const iconCircleCenterY = locBoxY + locBoxHeight / 2 - 3 // 圆心位置（略微上移）
-				
-				ctx.save()
-				ctx.translate(iconCenterX, iconCircleCenterY) // 移动坐标系原点到圆心位置
-				
-				// 【步骤1】绘制白色水滴形状
-				ctx.beginPath()
-				
-				// (1) 上半部分：圆弧（从左侧180°到右侧0°）
-				ctx.arc(
-					0, 0,             // 圆心 (0, 0)
-					iconCircleRadius, // 半径 12px
-					Math.PI,          // 起始角度 180°（左侧）
-					0,                // 结束角度 0°（右侧）
-					false             // 顺时针
+				// 绘制 PNG 图标（带透明通道）
+				ctx.drawImage(
+					'/static/images/location-pin.png',
+					iconX,
+					iconY,
+					iconSize,
+					iconSize
 				)
-				
-				// (2) 右侧：贝塞尔曲线到底部尖角
-				const tipHalfWidth = iconTipWidth / 2
-				const tipY = iconTipDistance - 1
-				ctx.bezierCurveTo(
-					iconCircleRadius * 0.65, iconCircleRadius * 0.9,
-					iconCircleRadius * 0.3,  tipY - 4,
-					tipHalfWidth,            tipY
-				)
-				
-				// (3) 底部：小圆角连接
-				ctx.arcTo(
-					0,            iconTipDistance,
-					-tipHalfWidth, tipY,
-					1
-				)
-				
-				// (4) 左侧：贝塞尔曲线回到起点
-				ctx.bezierCurveTo(
-					-iconCircleRadius * 0.3,  tipY - 4,
-					-iconCircleRadius * 0.65, iconCircleRadius * 0.9,
-					-iconCircleRadius,        0
-				)
-				
-				ctx.closePath()
-				ctx.setFillStyle('#ffffff')
-				ctx.fill()
-				
-				// 【步骤2】在中间绘制背景色圆形，覆盖出"空洞"效果
-				// 使用定位框的背景色（半透明黑色）
-				ctx.beginPath()
-				ctx.arc(0, 0, iconHoleRadius, 0, Math.PI * 2)
-				ctx.closePath()
-				ctx.setFillStyle(bgColor) // 使用与定位框相同的背景色
-				ctx.fill()
-				
-				ctx.restore()
 						
 					// 绘制定位文字（垂直居中）
 						ctx.setFillStyle('#ffffff')
@@ -545,61 +503,42 @@ export default {
 							// 动态生成加密的二维码文本
 							const qrCodeText = this.generateQRCodeText()
 							if (!qrCodeText) {
-								throw new Error('无法生成二维码文本，请检查员工姓名是否正确')
+								throw new Error('无法生成二维码文本')
 							}
 							
 							console.log('开始生成二维码，文本长度:', qrCodeText.length)
-							console.log('二维码文本:', qrCodeText)
 							
-							// 【移动端兼容性优化】异步生成二维码，避免阻塞主线程
-							let qrData
-							try {
-								// 尝试使用同步方式生成
-								qrData = QRCode.create(qrCodeText, {
-									errorCorrectionLevel: 'L' // 7% 容错率
-								})
-								console.log(`二维码数据生成成功: 版本${qrData.version}, 模块数${qrData.modules.size}x${qrData.modules.size}`)
-							} catch (createErr) {
-								console.error('QRCode.create 失败，尝试备用方案:', createErr)
-								// 如果 create 失败，尝试使用 toDataURL (H5环境) 或者跳过
-								throw new Error('二维码生成失败: ' + createErr.message)
-							}
+							// 生成二维码数据
+							const qrData = QRCode.create(qrCodeText, {
+								errorCorrectionLevel: 'L'
+							})
 							
-							if (!qrData || !qrData.modules || !qrData.modules.data) {
-								throw new Error('二维码数据无效')
-							}
+							console.log(`二维码生成成功: 版本${qrData.version}, 模块数${qrData.modules.size}x${qrData.modules.size}`)
 							
 							const modules = qrData.modules.data
 							const mCount = qrData.modules.size
 							
-							console.log(`二维码模块信息: size=${mCount}, 数据长度=${modules.length}`)
-							
 							// 按用户要求设置参数
-							const qrSize = 258 // 总尺寸固定为 258x258
-							const margin = 6 // 白色边框固定为 6px
-							const contentSize = qrSize - margin * 2 // 内容区域 = 258 - 12 = 246px
-							const moduleSize = contentSize / mCount // 每个模块的大小
+							const qrSize = 258
+							const margin = 6
+							const contentSize = qrSize - margin * 2
+							const moduleSize = contentSize / mCount
 							
 							const qrX = targetWidth - qrSize
 							const qrY = targetHeight - qrSize
 							
-							console.log(`二维码参数: 位置(${qrX}, ${qrY}), 尺寸${qrSize}x${qrSize}, 模块大小${moduleSize.toFixed(2)}px`)
-							
 							// 1. 绘制白色背景
 							ctx.setFillStyle('#ffffff')
 							ctx.fillRect(qrX, qrY, qrSize, qrSize)
-							console.log('白色背景绘制完成')
 							
 							// 2. 绘制黑色模块
 							ctx.setFillStyle('#000000')
 							let rectCount = 0
 							
-							// 【优化】批量绘制，减少 fillRect 调用次数
 							for (let row = 0; row < mCount; row++) {
 								for (let col = 0; col < mCount; col++) {
 									const index = row * mCount + col
 									if (modules[index]) {
-										// 使用像素边界对齐算法，避免出现缝隙
 										const x1 = Math.floor(qrX + margin + col * moduleSize)
 										const y1 = Math.floor(qrY + margin + row * moduleSize)
 										const x2 = Math.floor(qrX + margin + (col + 1) * moduleSize)
@@ -607,7 +546,6 @@ export default {
 										const w = x2 - x1
 										const h = y2 - y1
 										
-										// 确保宽高至少为1像素
 										if (w > 0 && h > 0) {
 											ctx.fillRect(x1, y1, w, h)
 											rectCount++
@@ -618,12 +556,9 @@ export default {
 							console.log(`二维码绘制完成: 共绘制${rectCount}个黑色模块`)
 							
 					} catch (qrErr) {
-						console.error('=== 二维码生成异常 ===')
-						console.error('错误类型:', qrErr.name)
-						console.error('错误详情:', qrErr.message)
-						console.error('错误堆栈:', qrErr.stack)
+						console.error('二维码生成失败:', qrErr)
 						
-						// 【降级处理】如果二维码生成失败，在位置绘制一个提示文字
+						// 在二维码位置绘制错误提示
 						const qrSize = 258
 						const qrX = targetWidth - qrSize
 						const qrY = targetHeight - qrSize
@@ -632,13 +567,15 @@ export default {
 						ctx.fillRect(qrX, qrY, qrSize, qrSize)
 						
 						ctx.setFillStyle('#ff0000')
-						ctx.setFontSize(20)
+						ctx.setFontSize(18)
 						ctx.setTextAlign('center')
-						ctx.fillText('二维码生成失败', qrX + qrSize / 2, qrY + qrSize / 2 - 20)
-						ctx.setFontSize(16)
-						ctx.fillText(qrErr.message.substring(0, 20), qrX + qrSize / 2, qrY + qrSize / 2 + 10)
+						ctx.fillText('二维码生成失败', qrX + qrSize / 2, qrY + qrSize / 2)
 						
-						console.log('已绘制错误提示')
+						uni.showToast({
+							title: '二维码生成失败',
+							icon: 'none',
+							duration: 2000
+						})
 					}
 					
 					// 统一绘制所有内容到画布
@@ -669,11 +606,11 @@ export default {
 								destHeight: targetHeight,
 								fileType: 'jpg', // 指定输出为jpg格式
 								quality: 0.9,    // 图片质量（0-1，默认0.9）
-								success: (res) => {
-									console.log('canvasToTempFilePath成功，临时文件路径:', res.tempFilePath)
-									// 处理EXIF数据
-									this.processImageWithExif(res.tempFilePath)
-								},
+									success: (res) => {
+										console.log('canvasToTempFilePath成功，临时文件路径:', res.tempFilePath)
+										// 处理EXIF数据
+										this.processImageWithExif(res.tempFilePath)
+									},
 								fail: (err) => {
 									console.error('canvasToTempFilePath失败:', err)
 									console.error('错误码:', err.errMsg)
@@ -920,7 +857,7 @@ export default {
 			if (!this.resultImage) return
 			
 			// #ifdef H5
-			// H5 环境：使用浏览器下载，文件名为时间戳格式
+			// H5 环境：使用浏览器下载
 			try {
 				const fileName = this.generateTimestampFileName()
 				const link = document.createElement('a')
@@ -936,331 +873,144 @@ export default {
 			} catch (e) {
 				console.error('H5下载失败:', e)
 				uni.showToast({
-					title: '下载失败，请长按图片保存',
-					icon: 'none',
-					duration: 3000
+					title: '下载失败',
+					icon: 'none'
 				})
 			}
 			// #endif
 
 			// #ifndef H5
-			// APP环境：先请求权限，再保存
-			this.requestStoragePermission()
+			// APP环境：保存到 /lebang/waterimages/ 目录
+			this.saveImageToCustomPath()
 			// #endif
 		},
 		
 		// #ifndef H5
-		// 请求存储权限
-		requestStoragePermission() {
-			console.log('开始请求存储权限')
-			
-			// 检查 plus 是否准备就绪
-			if (typeof plus === 'undefined') {
-				console.error('plus 模块未准备就绪')
-				uni.showToast({
-					title: 'APP环境未准备就绪',
-					icon: 'none',
-					duration: 2000
-				})
-				return
-			}
-			
-			// 判断 Android 版本，Android 13 (API 33) 及以上使用新的权限模型
-			const main = plus.android.runtimeMainActivity()
-			const Build = plus.android.importClass('android.os.Build')
-			const sdkInt = Build.VERSION.SDK_INT
-			
-			console.log('Android SDK 版本:', sdkInt)
-			
-			// Android 13+ 使用 READ_MEDIA_IMAGES 权限
-			if (sdkInt >= 33) {
-				const permissions = ['android.permission.READ_MEDIA_IMAGES']
-				this.checkAndRequestPermissions(permissions)
-			} 
-			// Android 6.0 - 12 使用传统存储权限
-			else if (sdkInt >= 23) {
-				const permissions = [
-					'android.permission.READ_EXTERNAL_STORAGE',
-					'android.permission.WRITE_EXTERNAL_STORAGE'
-				]
-				this.checkAndRequestPermissions(permissions)
-			} 
-			// Android 6.0 以下直接保存
-			else {
-				console.log('Android 版本低于 6.0，直接保存')
-				this.saveImageToCustomPath()
-			}
-		},
-		
-		// 检查并请求权限
-		checkAndRequestPermissions(permissions) {
-			const main = plus.android.runtimeMainActivity()
-			const PackageManager = plus.android.importClass('android.content.pm.PackageManager')
-			const ArrayList = plus.android.importClass('java.util.ArrayList')
-			
-			const permissionsToRequest = new ArrayList()
-			let allGranted = true
-			
-			// 检查每个权限是否已授予
-			for (let permission of permissions) {
-				const result = main.checkSelfPermission(permission)
-				console.log(`权限 ${permission} 检查结果:`, result)
-				if (result !== PackageManager.PERMISSION_GRANTED) {
-					permissionsToRequest.add(permission)
-					allGranted = false
-				}
-			}
-			
-			// 如果所有权限都已授予，直接保存
-			if (allGranted) {
-				console.log('所有权限已授予，开始保存')
-				this.saveImageToCustomPath()
-				return
-			}
-			
-			// 请求未授予的权限
-			console.log('请求权限:', permissionsToRequest.toArray())
-			
-			// 使用 uni.requestAndroidPermission 请求权限
-			const permissionNames = []
-			for (let i = 0; i < permissionsToRequest.size(); i++) {
-				permissionNames.push(permissionsToRequest.get(i))
-			}
-			
-			// 依次请求每个权限
-			this.requestPermissionsSequentially(permissionNames, 0)
-		},
-		
-		// 递归请求权限
-		requestPermissionsSequentially(permissions, index) {
-			if (index >= permissions.length) {
-				// 所有权限请求完成，开始保存
-				console.log('权限请求完成，开始保存')
-				this.saveImageToCustomPath()
-				return
-			}
-			
-			const permission = permissions[index]
-			console.log(`请求权限 (${index + 1}/${permissions.length}):`, permission)
-			
-			plus.android.requestPermissions(
-				[permission],
-				(resultObj) => {
-					console.log('权限请求结果:', resultObj)
-					if (resultObj.granted && resultObj.granted.length > 0) {
-						console.log('权限已授予:', resultObj.granted[0])
-					} else if (resultObj.deniedAlways && resultObj.deniedAlways.length > 0) {
-						console.log('权限被永久拒绝:', resultObj.deniedAlways[0])
-					} else if (resultObj.deniedPresent && resultObj.deniedPresent.length > 0) {
-						console.log('权限被拒绝:', resultObj.deniedPresent[0])
-					}
-					
-					// 继续请求下一个权限
-					this.requestPermissionsSequentially(permissions, index + 1)
-				},
-				(error) => {
-					console.error('权限请求失败:', error)
-					// 即使失败也继续请求下一个
-					this.requestPermissionsSequentially(permissions, index + 1)
-				}
-			)
-		},
-		// #endif
-		
-		// #ifndef H5
 		// APP端保存到自定义路径
 		saveImageToCustomPath() {
-			console.log('=== 开始保存图片 ===')
-			console.log('resultImage 路径:', this.resultImage)
+			this.saveStatus = '📱 开始保存...\n'
+			this.saveStatus += `源文件: ${this.resultImage}\n`
+			this.showSaveStatus = true
 			
-			// 检查 plus 是否可用
-			if (typeof plus === 'undefined') {
-				console.error('plus 模块未定义')
-				uni.showToast({
-					title: 'APP环境未就绪',
-					icon: 'none'
-				})
-				return
-			}
+			console.log('=== 开始保存图片 ===')
 			
 			uni.showLoading({
 				title: '保存中...',
 				mask: true
 			})
 			
-			try {
-				// 获取内部存储根目录（Android: /storage/emulated/0/）
-				const publicDocsPath = plus.io.PUBLIC_DOCUMENTS
-				console.log('PUBLIC_DOCUMENTS:', publicDocsPath)
-				
-				const storagePath = publicDocsPath.replace('/Documents', '') // 获取 /storage/emulated/0
-				console.log('storagePath:', storagePath)
-				
-				const basePath = `${storagePath}/lebang/waterimages` // 内部存储/lebang/waterimages
-				let fileName = this.generateTimestampFileName()
-				
-				console.log('目标保存路径:', basePath)
-				console.log('文件名:', fileName)
-				
-				// 递归创建目录
-				const createDirRecursive = (path, callback) => {
-					console.log('尝试访问/创建目录:', path)
-					plus.io.resolveLocalFileSystemURL(path, 
-						(entry) => {
-							// 目录已存在
-							console.log('目录已存在:', path)
-							callback(true, entry)
-						}, 
-						(err) => {
-							// 目录不存在，创建
-							console.log('目录不存在，准备创建:', path, 'error:', err)
-							const parentPath = path.substring(0, path.lastIndexOf('/'))
-							console.log('父目录路径:', parentPath)
-							
-							createDirRecursive(parentPath, (success, parentEntry) => {
-								if (success && parentEntry) {
-									const dirName = path.substring(path.lastIndexOf('/') + 1)
-									console.log('创建子目录:', dirName)
-									
-									parentEntry.getDirectory(dirName, { create: true }, 
-										(newEntry) => {
-											console.log('子目录创建成功:', dirName)
-											callback(true, newEntry)
-										},
-										(createErr) => {
-											console.error('创建子目录失败:', dirName, createErr)
-											callback(false, null)
-										}
-									)
-								} else {
-									console.error('父目录创建失败')
-									callback(false, null)
-								}
-							})
-						}
-					)
-				}
-				
-				// 检查并调整文件名（避免重名）
-				const getUniqueFileName = (baseFileName, callback) => {
-					const finalPath = `${basePath}/${baseFileName}`
-					plus.io.resolveLocalFileSystemURL(finalPath,
-						(entry) => {
-							// 文件存在，递增最后一位数字
-							console.log('文件已存在，生成新文件名:', baseFileName)
-							const nameWithoutExt = baseFileName.replace('.jpg', '')
-							const lastChar = nameWithoutExt[nameWithoutExt.length - 1]
-							const newLastChar = String((parseInt(lastChar) + 1) % 10)
-							const newFileName = nameWithoutExt.substring(0, nameWithoutExt.length - 1) + newLastChar + '.jpg'
-							getUniqueFileName(newFileName, callback) // 递归检查
-						},
-						(err) => {
-							// 文件不存在，可以使用
-							console.log('文件名可用:', baseFileName)
-							callback(baseFileName, finalPath)
-						}
-					)
-				}
-				
-				// 1. 创建目录
-				createDirRecursive(basePath, (dirSuccess, dirEntry) => {
-					if (!dirSuccess) {
-						console.error('目录创建失败')
-						uni.hideLoading()
-						uni.showToast({
-							title: '创建目录失败',
-							icon: 'none',
-							duration: 2000
-						})
-						return
-					}
-					
-					console.log('目录准备完成，开始处理文件')
-					
-					// 2. 获取唯一文件名
-					getUniqueFileName(fileName, (finalFileName, finalPath) => {
-						console.log('最终文件名:', finalFileName)
-						console.log('最终完整路径:', finalPath)
-						console.log('准备复制文件，源路径:', this.resultImage)
-						
-						// 3. 复制临时文件到目标路径
-						plus.io.resolveLocalFileSystemURL(this.resultImage, 
-							(entry) => {
-								console.log('源文件访问成功，开始复制')
-								console.log('源文件信息:', {
-									name: entry.name,
-									fullPath: entry.fullPath,
-									isFile: entry.isFile,
-									isDirectory: entry.isDirectory
-								})
-								
-								entry.copyTo(dirEntry, finalFileName, 
-									(newEntry) => {
-										console.log('文件复制成功!')
-										console.log('新文件路径:', newEntry.fullPath)
-										uni.hideLoading()
-										uni.showToast({
-											title: '保存成功',
-											icon: 'success',
-											duration: 2000
-										})
-									},
-									(err) => {
-										console.error('文件复制失败，错误详情:', {
-											code: err.code,
-											message: err.message
-										})
-										uni.hideLoading()
-										
-										// 如果复制失败，尝试保存到相册
-										console.log('尝试备用方案：保存到相册')
-										uni.saveImageToPhotosAlbum({
-											filePath: this.resultImage,
-											success: () => {
-												console.log('保存到相册成功')
-												uni.showToast({
-													title: '已保存到相册',
-													icon: 'success',
-													duration: 2000
-												})
-											},
-											fail: (albumErr) => {
-												console.error('保存到相册也失败:', albumErr)
-												uni.showToast({
-													title: '保存失败: ' + (albumErr.errMsg || '未知错误'),
-													icon: 'none',
-													duration: 3000
-												})
-											}
-										})
-									}
-								)
-							},
-							(err) => {
-								console.error('无法访问源文件，错误详情:', {
-									code: err.code,
-									message: err.message,
-									path: this.resultImage
-								})
-								uni.hideLoading()
-								uni.showToast({
-									title: '源文件访问失败',
-									icon: 'none',
-									duration: 2000
-								})
-							}
-						)
-					})
-				})
-			} catch (error) {
-				console.error('保存图片异常:', error)
+			// 超时保护
+			const timeoutId = setTimeout(() => {
 				uni.hideLoading()
+				this.saveStatus += '\n❌ 保存超时（10秒）'
 				uni.showToast({
-					title: '保存失败: ' + error.message,
-					icon: 'none',
-					duration: 3000
+					title: '保存超时，请查看状态',
+					icon: 'none'
 				})
-			}
+			}, 10000)
+			
+			const fileName = this.generateTimestampFileName()
+			const targetDir = '/storage/emulated/0/lebang/waterimages/'
+			
+			this.saveStatus += `\n📁 目标目录: ${targetDir}`
+			this.saveStatus += `\n📄 文件名: ${fileName}`
+			this.saveStatus += `\n\n🔄 检查目录...`
+			
+			// 先确保目录存在
+			plus.io.resolveLocalFileSystemURL(targetDir, 
+				(dirEntry) => {
+					this.saveStatus += '\n✅ 目录已存在'
+					this.saveStatus += '\n\n🔄 开始复制文件...'
+					this.copyFileToTarget(timeoutId, dirEntry, fileName)
+				},
+				(err) => {
+					this.saveStatus += '\n⚠️ 目录不存在，开始创建...'
+					this.saveStatus += `\n   错误码: ${err.code || 'unknown'}`
+					
+					// 目录不存在，创建它
+					plus.io.resolveLocalFileSystemURL('/storage/emulated/0/', (rootEntry) => {
+						this.saveStatus += '\n✅ 根目录访问成功'
+						
+						rootEntry.getDirectory('lebang', { create: true }, (lebangDir) => {
+							this.saveStatus += '\n✅ lebang 目录创建/访问成功'
+							
+							lebangDir.getDirectory('waterimages', { create: true }, (waterDir) => {
+								this.saveStatus += '\n✅ waterimages 目录创建/访问成功'
+								this.saveStatus += '\n\n🔄 开始复制文件...'
+								this.copyFileToTarget(timeoutId, waterDir, fileName)
+							}, (createErr) => {
+								clearTimeout(timeoutId)
+								uni.hideLoading()
+								this.saveStatus += `\n\n❌ 创建waterimages失败`
+								this.saveStatus += `\n   错误码: ${createErr.code}`
+								this.saveStatus += `\n   错误信息: ${createErr.message || '未知'}`
+								uni.showToast({ title: '创建目录失败', icon: 'none' })
+							})
+						}, (createErr) => {
+							clearTimeout(timeoutId)
+							uni.hideLoading()
+							this.saveStatus += `\n\n❌ 创建lebang失败`
+							this.saveStatus += `\n   错误码: ${createErr.code}`
+							this.saveStatus += `\n   错误信息: ${createErr.message || '未知'}`
+							uni.showToast({ title: '创建目录失败', icon: 'none' })
+						})
+					}, (rootErr) => {
+						clearTimeout(timeoutId)
+						uni.hideLoading()
+						this.saveStatus += `\n\n❌ 访问根目录失败`
+						this.saveStatus += `\n   错误码: ${rootErr.code}`
+						this.saveStatus += `\n   错误信息: ${rootErr.message || '未知'}`
+						uni.showToast({ title: '访问根目录失败', icon: 'none' })
+					})
+				}
+			)
+		},
+		
+		// #ifndef H5
+		// 复制文件到目标目录
+		copyFileToTarget(timeoutId, targetDirEntry, fileName) {
+			this.saveStatus += '\n\n🔄 访问源文件...'
+			
+			plus.io.resolveLocalFileSystemURL(this.resultImage, (sourceEntry) => {
+				this.saveStatus += '\n✅ 源文件访问成功'
+				this.saveStatus += '\n\n🔄 正在复制...'
+				
+				sourceEntry.copyTo(targetDirEntry, fileName,
+					(newEntry) => {
+						clearTimeout(timeoutId)
+						uni.hideLoading()
+						this.saveStatus += '\n\n✅ 保存成功！'
+						this.saveStatus += `\n📍 完整路径:\n   ${newEntry.fullPath}`
+						uni.showToast({
+							title: '保存成功',
+							icon: 'success'
+						})
+					},
+					(copyErr) => {
+						clearTimeout(timeoutId)
+						uni.hideLoading()
+						this.saveStatus += `\n\n❌ 文件复制失败`
+						this.saveStatus += `\n   错误码: ${copyErr.code}`
+						this.saveStatus += `\n   错误信息: ${copyErr.message || '未知'}`
+						uni.showToast({
+							title: '复制失败',
+							icon: 'none'
+						})
+					}
+				)
+			}, (sourceErr) => {
+				clearTimeout(timeoutId)
+				uni.hideLoading()
+				this.saveStatus += `\n\n❌ 访问源文件失败`
+				this.saveStatus += `\n   错误码: ${sourceErr.code}`
+				this.saveStatus += `\n   错误信息: ${sourceErr.message || '未知'}`
+				uni.showToast({
+					title: '访问源文件失败',
+					icon: 'none'
+				})
+			})
+		},
+		// #endif
 		},
 		// #endif
 		
@@ -1660,6 +1410,43 @@ export default {
 	border-radius: 16rpx;
 	font-size: 32rpx;
 	font-weight: 600;
+	border: none;
+}
+
+/* 保存状态显示 */
+.save-status-box {
+	margin-top: 30rpx;
+	background: #f8f9fa;
+	border-radius: 16rpx;
+	padding: 24rpx;
+	border: 2rpx solid #dee2e6;
+}
+
+.status-title {
+	font-size: 28rpx;
+	font-weight: 600;
+	color: #495057;
+	margin-bottom: 16rpx;
+}
+
+.status-text {
+	font-size: 24rpx;
+	color: #6c757d;
+	line-height: 1.8;
+	font-family: 'Courier New', monospace;
+	white-space: pre-wrap;
+	word-break: break-all;
+	display: block;
+	margin-bottom: 20rpx;
+}
+
+.close-status-btn {
+	width: 100%;
+	background: #6c757d;
+	color: white;
+	padding: 20rpx;
+	border-radius: 12rpx;
+	font-size: 28rpx;
 	border: none;
 }
 

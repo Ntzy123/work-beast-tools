@@ -12,6 +12,13 @@ node_modules
 dist
 *.local
 
+# Static images (generated from SVG, not version controlled)
+src/static/images/*.png
+src/static/images/*.jpg
+src/static/images/*.jpeg
+# Keep the directory structure
+!src/static/images/.gitkeep
+
 # Editor directories and files
 .idea
 *.suo

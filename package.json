@@ -55,6 +55,7 @@
     "crypto-js": "^4.2.0",
     "piexifjs": "^1.0.6",
     "qrcode": "^1.5.4",
+    "text-encoding-polyfill": "^0.6.7",
     "vue": "^3.4.21",
     "vue-i18n": "^9.1.9"
   },

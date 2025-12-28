@@ -3,7 +3,7 @@
 		<!-- 状态栏占位 -->
 		<view class="status-bar" :style="{ height: statusBarHeight + 'px' }"></view>
 		
-		<!-- 扫码区域占位 (plus.barcode会在这里显示相机) -->
+		<!-- 扫码区域占位（barcode原生控件会渲染在这里） -->
 		<view class="scan-container" :style="{ height: cameraHeight + 'px' }"></view>
 		
 		<!-- H5环境提示 -->
@@ -15,43 +15,43 @@
 			</view>
 		</view>
 		
-		<!-- 扫码框装饰 (只在非H5环境显示) -->
-		<view class="scan-box" v-if="!isH5">
-			<view class="scan-border">
+		<!-- 扫码框装饰（覆盖在原生控件上方） -->
+		<cover-view class="scan-box" v-if="!isH5">
+			<cover-view class="scan-border">
 				<!-- 四个角的装饰 -->
-				<view class="corner corner-tl"></view>
-				<view class="corner corner-tr"></view>
-				<view class="corner corner-bl"></view>
-				<view class="corner corner-br"></view>
-			</view>
+				<cover-view class="corner corner-tl"></cover-view>
+				<cover-view class="corner corner-tr"></cover-view>
+				<cover-view class="corner corner-bl"></cover-view>
+				<cover-view class="corner corner-br"></cover-view>
+			</cover-view>
 			<!-- 扫描线动画 -->
-			<view class="scan-line" :class="{ scanning: isScanning }"></view>
-		</view>
+			<cover-view class="scan-line" :class="{ scanning: isScanning }"></cover-view>
+		</cover-view>
 		
 		<!-- 扫码提示文字 -->
-		<view class="scan-tip" v-if="!isH5">
-			<text class="tip-text">将二维码放入框内，即可自动扫描</text>
-		</view>
+		<cover-view class="scan-tip" v-if="!isH5">
+			<cover-view class="tip-text">将二维码放入框内，即可自动扫描</cover-view>
+		</cover-view>
 		
 		<!-- 返回按钮 -->
-		<view class="back-btn" @click="goBack">
-			<text class="back-icon">←</text>
-		</view>
+		<cover-view class="back-btn" @click="goBack">
+			<cover-view class="back-icon">&lt;</cover-view>
+		</cover-view>
 		
 		<!-- 底部操作栏 -->
-		<view class="bottom-toolbar" v-if="!isH5">
+		<cover-view class="bottom-toolbar" v-if="!isH5">
 			<!-- 手电筒按钮 -->
-			<view class="tool-btn flashlight-btn" @click="toggleFlashlight">
-				<view class="tool-icon" :class="{ active: flashlightOn }">💡</view>
-				<text class="tool-label">{{ flashlightOn ? '关闭' : '手电筒' }}</text>
-			</view>
+			<cover-view class="tool-btn flashlight-btn" @click="toggleFlashlight">
+				<cover-view class="tool-icon" :class="{ active: flashlightOn }">💡</cover-view>
+				<cover-view class="tool-label">{{ flashlightOn ? '关闭' : '手电筒' }}</cover-view>
+			</cover-view>
 			
 			<!-- 相册按钮 -->
-			<view class="tool-btn album-btn" @click="chooseFromAlbum">
-				<view class="tool-icon">🖼️</view>
-				<text class="tool-label">相册</text>
-			</view>
-		</view>
+			<cover-view class="tool-btn album-btn" @click="chooseFromAlbum">
+				<cover-view class="tool-icon">🖼️</cover-view>
+				<cover-view class="tool-label">相册</cover-view>
+			</cover-view>
+		</cover-view>
 		
 		<!-- 扫码结果弹窗 -->
 		<view class="result-modal" v-if="showResult" @click="closeResult">
@@ -63,6 +63,19 @@
 					<view class="action-btn close-btn" @click="closeResult">关闭</view>
 				</view>
 			</view>
+		</view>
+		
+		<!-- 调试日志面板 -->
+		<view class="debug-panel" v-if="debugLogs.length > 0">
+			<view class="debug-header" @click="clearDebugLogs">
+				<text class="debug-title">调试日志 (点击清空)</text>
+			</view>
+			<scroll-view class="debug-logs" scroll-y>
+				<view class="debug-log" v-for="(log, index) in debugLogs" :key="index">
+					<text class="log-time">{{ log.time }}</text>
+					<text class="log-text" :class="'log-' + log.type">{{ log.message }}</text>
+				</view>
+			</scroll-view>
 		</view>
 	</view>
 </template>
@@ -85,8 +98,8 @@ export default {
 			showResult: false,
 			scanResult: '',
 			scanTimer: null,
-			cameraContext: null,
-			barcode: null
+			barcode: null,
+			debugLogs: [] // 调试日志
 		}
 	},
 	onLoad() {
@@ -96,20 +109,19 @@ export default {
 		this.screenHeight = systemInfo.windowHeight
 		this.cameraHeight = systemInfo.windowHeight - this.statusBarHeight
 		
-		console.log('扫码页面加载，环境信息:', {
-			platform: uni.getSystemInfoSync().platform,
-			isH5: this.isH5,
-			statusBarHeight: this.statusBarHeight,
-			cameraHeight: this.cameraHeight
-		})
+		this.addDebugLog('扫码页面加载', 'info')
+		this.addDebugLog(`平台: ${systemInfo.platform}`, 'info')
+		this.addDebugLog(`isH5: ${this.isH5}`, 'info')
+		this.addDebugLog(`状态栏高度: ${this.statusBarHeight}px`, 'info')
+		this.addDebugLog(`相机高度: ${this.cameraHeight}px`, 'info')
 		
 		// 启动扫描线动画
 		this.isScanning = true
 		
-		// 延迟启动扫码识别，确保页面已完全渲染
+		// 初始化相机和canvas上下文
 		if (!this.isH5) {
 			setTimeout(() => {
-				this.initBarcodeScan()
+				this.initScan()
 			}, 500)
 		}
 	},
@@ -117,128 +129,159 @@ export default {
 		// 清理定时器
 		if (this.scanTimer) {
 			clearInterval(this.scanTimer)
+			this.scanTimer = null
 		}
 		
 		// #ifdef APP-PLUS
-		// 关闭扫码控件
+		// 关闭并销毁barcode扫码控件
 		if (this.barcode) {
+			this.addDebugLog('关闭barcode控件', 'info')
 			this.barcode.close()
 			this.barcode = null
 		}
 		// #endif
+		
+		this.addDebugLog('页面卸载，清理资源', 'info')
 	},
 	methods: {
-		// 初始化条码扫描（使用 plus.barcode）
-		initBarcodeScan() {
-			console.log('开始初始化扫码功能')
+		// 添加调试日志
+		addDebugLog(message, type = 'info') {
+			const now = new Date()
+			const time = `${now.getHours()}:${now.getMinutes()}:${now.getSeconds()}`
+			this.debugLogs.push({
+				time,
+				message,
+				type
+			})
+			// 限制日志数量
+			if (this.debugLogs.length > 20) {
+				this.debugLogs.shift()
+			}
+			console.log(`[${time}] ${message}`)
+		},
+		
+		// 清空调试日志
+		clearDebugLogs() {
+			this.debugLogs = []
+		},
+		
+		// 初始化扫码功能
+		initScan() {
+			this.addDebugLog('初始化barcode扫码', 'info')
 			
 			// #ifdef APP-PLUS
-			// 确保在 plusready 后执行
-			const initScan = () => {
-				try {
-					// 检查 plus 是否可用
-					if (typeof plus === 'undefined' || !plus.barcode) {
-						console.error('plus.barcode 不可用')
-						return
-					}
-					
-					const pages = getCurrentPages()
-					const page = pages[pages.length - 1]
-					const currentWebview = page.$getAppWebview()
-					
-					console.log('创建 Barcode 扫码控件, 屏幕高度:', this.cameraHeight)
-					
-					// 获取系统信息
-					const sys = plus.os.name
-					console.log('系统:', sys)
-					
-					// 创建 Barcode 扫码控件
-					// 注意：不能和 camera 组件同时使用，会冲突
-					// 这里改用 barcode 自带的相机功能
-					this.barcode = plus.barcode.create('barcode', 
-						[plus.barcode.QR, plus.barcode.EAN13, plus.barcode.EAN8], 
-						{
-							top: this.statusBarHeight + 'px',
-							left: '0px',
-							width: '100%',
-							height: this.cameraHeight + 'px',
-							position: 'static'
-						}
-					)
-					
-					// 设置样式（扫描框和扫描线颜色）
-					this.barcode.setStyles({
-						frameColor: '#00ff00',
-						scanbarColor: '#00ff00'
-					})
-					
-					// 监听扫码成功事件
-					this.barcode.onmarked = (type, result, file) => {
-						console.log('扫码成功:', type, result)
-						// 震动反馈
-						plus.device.vibrate && plus.device.vibrate(100)
-						// 停止扫码
-						this.barcode.cancel()
-						// 处理结果
-						this.handleScanResult(result)
-					}
-					
-					// 监听扫码错误
-					this.barcode.onerror = (error) => {
-						console.error('扫码错误:', error)
-					}
-					
-					// 将扫码控件添加到当前页面
-					currentWebview.append(this.barcode)
-					
-					// 开始扫码
-					this.barcode.start()
-					console.log('扫码控件已启动')
-					
-				} catch (error) {
-					console.error('初始化扫码失败:', error)
-					uni.showModal({
-						title: '提示',
-						content: '扫码功能初始化失败: ' + error.message,
-						showCancel: false,
-						success: () => {
-							this.goBack()
-						}
-					})
-				}
-			}
-			
-			// 检查 plus 是否就绪
-			if (typeof plus !== 'undefined') {
-				initScan()
+			// 等待plusready
+			if (typeof plus === 'undefined') {
+				this.addDebugLog('等待plus就绪...', 'info')
+				document.addEventListener('plusready', () => {
+					this.addDebugLog('plus已就绪', 'success')
+					this.createBarcodeScanner()
+				}, false)
 			} else {
-				document.addEventListener('plusready', initScan, false)
+				this.createBarcodeScanner()
 			}
 			// #endif
 			
-			// #ifdef MP-WEIXIN
-			// 小程序环境，提示用户
-			uni.showModal({
-				title: '提示',
-				content: '小程序环境将使用系统扫码功能',
-				confirmText: '开始扫码',
-				success: (res) => {
-					if (res.confirm) {
-						uni.scanCode({
-							scanType: ['qrCode', 'barCode'],
-							success: (scanRes) => {
-								this.handleScanResult(scanRes.result)
-							},
-							fail: () => {
-								this.goBack()
-							}
-						})
-					} else {
+			// #ifndef APP-PLUS
+			this.addDebugLog('非APP环境，使用降级方案', 'warning')
+			this.useFallbackScan()
+			// #endif
+		},
+		
+		// 创建barcode扫码控件
+		createBarcodeScanner() {
+			try {
+				this.addDebugLog('创建barcode扫码控件', 'info')
+				
+				const pages = getCurrentPages()
+				const page = pages[pages.length - 1]
+				const currentWebview = page.$getAppWebview()
+				
+				// 获取系统信息
+				const sys = plus.os.name
+				this.addDebugLog(`系统: ${sys}`, 'info')
+				
+				// 创建barcode扫码控件
+				this.barcode = plus.barcode.create('barcode', 
+					[plus.barcode.QR, plus.barcode.EAN13, plus.barcode.EAN8], 
+					{
+						top: this.statusBarHeight + 'px',
+						left: '0px',
+						width: '100%',
+						height: this.cameraHeight + 'px',
+						position: 'static'
+					}
+				)
+				
+				this.addDebugLog('barcode控件创建成功', 'success')
+				
+				// 监听扫码成功事件
+				this.barcode.onmarked = (type, result, file) => {
+					this.addDebugLog(`扫码成功: ${result}`, 'success')
+					// 震动反馈
+					plus.device.vibrate && plus.device.vibrate(100)
+					// 取消扫码
+					this.barcode.cancel()
+					// 处理结果
+					this.handleScanResult(result)
+				}
+				
+				// 监听错误
+				this.barcode.onerror = (error) => {
+					this.addDebugLog(`扫码错误: ${JSON.stringify(error)}`, 'error')
+				}
+				
+				// 将barcode控件添加到webview
+				currentWebview.append(this.barcode)
+				this.addDebugLog('barcode控件已添加到页面', 'info')
+				
+				// 延迟启动扫码，确保界面渲染完成
+				setTimeout(() => {
+					if (this.barcode) {
+						this.barcode.start()
+						this.addDebugLog('开始扫码', 'success')
+					}
+				}, 200)
+				
+			} catch (error) {
+				this.addDebugLog(`创建barcode失败: ${error.message}`, 'error')
+				this.addDebugLog(`错误堆栈: ${error.stack}`, 'error')
+				this.useFallbackScan()
+			}
+		},
+		
+		// 降级方案：使用系统扫码
+		useFallbackScan() {
+			this.addDebugLog('使用系统扫码作为降级方案', 'info')
+			
+			// 直接启动系统扫码
+			setTimeout(() => {
+				uni.scanCode({
+					scanType: ['qrCode', 'barCode'],
+					success: (res) => {
+						this.addDebugLog(`扫码成功: ${res.result}`, 'success')
+						this.handleScanResult(res.result)
+					},
+					fail: (err) => {
+						this.addDebugLog(`扫码取消: ${JSON.stringify(err)}`, 'info')
 						this.goBack()
 					}
+				})
+			}, 100)
+		},
+		
+		// 相机错误回调
+		onCameraError(error) {
+			this.addDebugLog(`相机错误: ${JSON.stringify(error)}`, 'error')
+			uni.showModal({
+				title: '相机启动失败',
+				content: '请检查相机权限设置',
+				confirmText: '返回',
+				showCancel: false,
+				success: () => {
+					this.goBack()
 				}
 			})
-			// #endif
 		},
 		
 		// 切换手电筒
@@ -257,84 +300,69 @@ export default {
 			if (this.barcode) {
 				try {
 					this.barcode.setFlash(this.flashlightOn)
+					this.addDebugLog(`手电筒${this.flashlightOn ? '已打开' : '已关闭'}`, 'success')
 					uni.showToast({
 						title: this.flashlightOn ? '手电筒已打开' : '手电筒已关闭',
 						icon: 'none',
 						duration: 1000
 					})
 				} catch (error) {
-					console.error('切换手电筒失败:', error)
-					uni.showToast({
-						title: '手电筒功能不可用',
-						icon: 'none'
-					})
+					this.addDebugLog(`手电筒操作失败: ${error.message}`, 'error')
 				}
 			} else {
-				uni.showToast({
-					title: '扫码功能未就绪',
-					icon: 'none'
-				})
+				this.addDebugLog('barcode控件不存在', 'error')
 			}
-			// #endif
-			
-			// #ifndef APP-PLUS
-			uni.showToast({
-				title: '当前环境不支持手电筒',
-				icon: 'none'
-			})
 			// #endif
 		},
 		
 		// 从相册选择
 		chooseFromAlbum() {
+			this.addDebugLog('打开相册', 'info')
+			
 			uni.chooseImage({
 				count: 1,
 				sourceType: ['album'],
 				success: (res) => {
 					const tempFilePath = res.tempFilePaths[0]
+					this.addDebugLog(`相册图片已选择: ${tempFilePath}`, 'info')
+					
 					uni.showLoading({
 						title: '识别中...'
 					})
 					
 					// #ifdef APP-PLUS
-					// 使用 plus.barcode.scan 静态方法识别图片
+					// 使用plus.barcode.scan识别图片
 					plus.barcode.scan(tempFilePath, (type, result) => {
 						uni.hideLoading()
-						console.log('相册识别成功:', type, result)
+						this.addDebugLog(`相册识别成功: ${result}`, 'success')
 						this.handleScanResult(result)
 					}, (error) => {
 						uni.hideLoading()
-						console.error('相册识别失败:', error)
+						this.addDebugLog(`相册识别失败: ${JSON.stringify(error)}`, 'error')
 						uni.showToast({
 							title: '未识别到二维码',
-							icon: 'none',
-							duration: 2000
+							icon: 'none'
 						})
 					}, [plus.barcode.QR, plus.barcode.EAN13, plus.barcode.EAN8])
 					// #endif
 					
-					// #ifdef H5
+					// #ifndef APP-PLUS
 					uni.hideLoading()
 					uni.showToast({
-						title: 'H5环境暂不支持',
+						title: '当前环境不支持相册识别',
 						icon: 'none'
 					})
 					// #endif
-					
-					// #ifdef MP
-					uni.hideLoading()
-					uni.showToast({
-						title: '小程序环境暂不支持相册识别',
-						icon: 'none'
-					})
-					// #endif
+				},
+				fail: (err) => {
+					this.addDebugLog(`选择图片失败: ${JSON.stringify(err)}`, 'error')
 				}
 			})
 		},
 		
 		// 处理扫码结果
 		handleScanResult(result) {
-			console.log('扫码结果:', result)
+			this.addDebugLog(`处理扫码结果: ${result}`, 'success')
 			this.scanResult = result
 			
 			// 判断是否为URL
@@ -401,6 +429,14 @@ export default {
 		// 关闭结果弹窗
 		closeResult() {
 			this.showResult = false
+			
+			// #ifdef APP-PLUS
+			// 重新启动扫码
+			if (this.barcode) {
+				this.addDebugLog('重新启动扫码', 'info')
+				this.barcode.start()
+			}
+			// #endif
 		},
 		
 		// 返回
@@ -430,7 +466,7 @@ export default {
 	pointer-events: none;
 }
 
-/* 扫码区域容器 (plus.barcode会在这里渲染) */
+/* 扫码区域容器 */
 .scan-container {
 	width: 100%;
 	position: relative;
@@ -491,34 +527,30 @@ export default {
 	text-align: center;
 }
 
-/* 返回按钮 - 使用渐变色与整体风格统一 */
+/* 返回按钮 - 简洁设计，无边框 */
 .back-btn {
 	position: fixed;
 	top: 0;
 	left: 0;
 	width: 80rpx;
 	height: 80rpx;
-	background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-	border-radius: 50%;
 	display: flex;
 	align-items: center;
 	justify-content: center;
 	z-index: 1001;
 	margin: 60rpx 0 0 40rpx;
-	box-shadow: 0 4rpx 16rpx rgba(102, 126, 234, 0.3);
 	transition: all 0.3s ease;
 }
 
 .back-btn:active {
 	transform: scale(0.9);
-	box-shadow: 0 2rpx 8rpx rgba(102, 126, 234, 0.4);
 }
 
 .back-icon {
-	font-size: 48rpx;
+	font-size: 56rpx;
 	color: #fff;
-	font-weight: bold;
-	margin-left: -4rpx;
+	font-weight: normal;
+	text-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.5);
 }
 
 /* 扫码框 (装饰性，不阻挡扫码) */
@@ -764,6 +796,75 @@ export default {
 .close-btn {
 	background: #f0f0f0;
 	color: #666;
+}
+
+/* 调试日志面板 */
+.debug-panel {
+	position: fixed;
+	bottom: 0;
+	left: 0;
+	right: 0;
+	max-height: 400rpx;
+	background: rgba(0, 0, 0, 0.9);
+	z-index: 2001;
+	display: flex;
+	flex-direction: column;
+	border-top: 2rpx solid rgba(255, 255, 255, 0.1);
+}
+
+.debug-header {
+	padding: 20rpx 30rpx;
+	background: rgba(102, 126, 234, 0.3);
+	border-bottom: 1rpx solid rgba(255, 255, 255, 0.1);
+}
+
+.debug-title {
+	color: #fff;
+	font-size: 24rpx;
+	font-weight: 600;
+}
+
+.debug-logs {
+	flex: 1;
+	padding: 20rpx;
+	max-height: 340rpx;
+}
+
+.debug-log {
+	margin-bottom: 12rpx;
+	padding: 12rpx 16rpx;
+	background: rgba(255, 255, 255, 0.05);
+	border-radius: 8rpx;
+	display: flex;
+	flex-direction: column;
+	gap: 8rpx;
+}
+
+.log-time {
+	font-size: 20rpx;
+	color: rgba(255, 255, 255, 0.5);
+}
+
+.log-text {
+	font-size: 22rpx;
+	line-height: 1.5;
+	word-break: break-all;
+}
+
+.log-info {
+	color: #67c3f3;
+}
+
+.log-success {
+	color: #52c41a;
+}
+
+.log-error {
+	color: #ff4d4f;
+}
+
+.log-warning {
+	color: #faad14;
 }
 </style>
 
