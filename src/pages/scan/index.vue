@@ -3,32 +3,34 @@
 		<!-- 状态栏占位 -->
 		<view class="status-bar" :style="{ height: statusBarHeight + 'px' }"></view>
 		
-		<!-- 扫码区域容器 (plus.barcode会在这里渲染相机) -->
-		<view class="scan-container" :style="{ height: cameraHeight + 'px' }">
-			<!-- H5环境提示 -->
-			<view v-if="isH5" class="h5-tips">
+		<!-- 扫码区域占位 (plus.barcode会在这里显示相机) -->
+		<view class="scan-container" :style="{ height: cameraHeight + 'px' }"></view>
+		
+		<!-- H5环境提示 -->
+		<view v-if="isH5" class="h5-overlay">
+			<view class="h5-tips">
 				<text class="tips-icon">📱</text>
 				<text class="tips-text">H5环境暂不支持扫码</text>
 				<text class="tips-desc">请在APP中使用此功能</text>
 			</view>
-			
-			<!-- 扫码框装饰 (仅装饰用，实际扫码由plus.barcode处理) -->
-			<view class="scan-box" v-if="!isH5">
-				<view class="scan-border">
-					<!-- 四个角的装饰 -->
-					<view class="corner corner-tl"></view>
-					<view class="corner corner-tr"></view>
-					<view class="corner corner-bl"></view>
-					<view class="corner corner-br"></view>
-				</view>
-				<!-- 扫描线动画 -->
-				<view class="scan-line" :class="{ scanning: isScanning }"></view>
+		</view>
+		
+		<!-- 扫码框装饰 (只在非H5环境显示) -->
+		<view class="scan-box" v-if="!isH5">
+			<view class="scan-border">
+				<!-- 四个角的装饰 -->
+				<view class="corner corner-tl"></view>
+				<view class="corner corner-tr"></view>
+				<view class="corner corner-bl"></view>
+				<view class="corner corner-br"></view>
 			</view>
-			
-			<!-- 扫码提示文字 -->
-			<view class="scan-tip" v-if="!isH5">
-				<text class="tip-text">将二维码放入框内，即可自动扫描</text>
-			</view>
+			<!-- 扫描线动画 -->
+			<view class="scan-line" :class="{ scanning: isScanning }"></view>
+		</view>
+		
+		<!-- 扫码提示文字 -->
+		<view class="scan-tip" v-if="!isH5">
+			<text class="tip-text">将二维码放入框内，即可自动扫描</text>
 		</view>
 		
 		<!-- 返回按钮 -->
@@ -94,16 +96,21 @@ export default {
 		this.screenHeight = systemInfo.windowHeight
 		this.cameraHeight = systemInfo.windowHeight - this.statusBarHeight
 		
+		console.log('扫码页面加载，环境信息:', {
+			platform: uni.getSystemInfoSync().platform,
+			isH5: this.isH5,
+			statusBarHeight: this.statusBarHeight,
+			cameraHeight: this.cameraHeight
+		})
+		
 		// 启动扫描线动画
 		this.isScanning = true
 		
-		// 非H5环境下，延迟启动扫码识别
+		// 延迟启动扫码识别，确保页面已完全渲染
 		if (!this.isH5) {
-			this.$nextTick(() => {
-				setTimeout(() => {
-					this.startScan()
-				}, 1000)
-			})
+			setTimeout(() => {
+				this.initBarcodeScan()
+			}, 500)
 		}
 	},
 	onUnload() {
@@ -121,73 +128,114 @@ export default {
 		// #endif
 	},
 	methods: {
-		// 启动扫码识别
-		startScan() {
+		// 初始化条码扫描（使用 plus.barcode）
+		initBarcodeScan() {
+			console.log('开始初始化扫码功能')
+			
 			// #ifdef APP-PLUS
-			// 使用 HTML5+ Barcode API 进行实时扫码
-			const pages = getCurrentPages()
-			const page = pages[pages.length - 1]
-			const currentWebview = page.$getAppWebview()
-			
-			// 计算扫码区域（扫码框位置）
-			const scanArea = {
-				top: '30%',
-				left: '15%', 
-				width: '70%',
-				height: '35%'
+			// 确保在 plusready 后执行
+			const initScan = () => {
+				try {
+					// 检查 plus 是否可用
+					if (typeof plus === 'undefined' || !plus.barcode) {
+						console.error('plus.barcode 不可用')
+						return
+					}
+					
+					const pages = getCurrentPages()
+					const page = pages[pages.length - 1]
+					const currentWebview = page.$getAppWebview()
+					
+					console.log('创建 Barcode 扫码控件, 屏幕高度:', this.cameraHeight)
+					
+					// 获取系统信息
+					const sys = plus.os.name
+					console.log('系统:', sys)
+					
+					// 创建 Barcode 扫码控件
+					// 注意：不能和 camera 组件同时使用，会冲突
+					// 这里改用 barcode 自带的相机功能
+					this.barcode = plus.barcode.create('barcode', 
+						[plus.barcode.QR, plus.barcode.EAN13, plus.barcode.EAN8], 
+						{
+							top: this.statusBarHeight + 'px',
+							left: '0px',
+							width: '100%',
+							height: this.cameraHeight + 'px',
+							position: 'static'
+						}
+					)
+					
+					// 设置样式（扫描框和扫描线颜色）
+					this.barcode.setStyles({
+						frameColor: '#00ff00',
+						scanbarColor: '#00ff00'
+					})
+					
+					// 监听扫码成功事件
+					this.barcode.onmarked = (type, result, file) => {
+						console.log('扫码成功:', type, result)
+						// 震动反馈
+						plus.device.vibrate && plus.device.vibrate(100)
+						// 停止扫码
+						this.barcode.cancel()
+						// 处理结果
+						this.handleScanResult(result)
+					}
+					
+					// 监听扫码错误
+					this.barcode.onerror = (error) => {
+						console.error('扫码错误:', error)
+					}
+					
+					// 将扫码控件添加到当前页面
+					currentWebview.append(this.barcode)
+					
+					// 开始扫码
+					this.barcode.start()
+					console.log('扫码控件已启动')
+					
+				} catch (error) {
+					console.error('初始化扫码失败:', error)
+					uni.showModal({
+						title: '提示',
+						content: '扫码功能初始化失败: ' + error.message,
+						showCancel: false,
+						success: () => {
+							this.goBack()
+						}
+					})
+				}
 			}
 			
-			// 创建 Barcode 扫码控件
-			this.barcode = plus.barcode.create('barcode', [plus.barcode.QR, plus.barcode.EAN13, plus.barcode.EAN8], {
-				top: (this.statusBarHeight) + 'px',
-				left: '0px',
-				width: '100%',
-				height: this.cameraHeight + 'px',
-				position: 'absolute',
-				scanbarColor: '#00ff00',
-				frameColor: '#00ff00',
-				background: '#000000'
-			})
-			
-			// 监听扫码成功事件
-			this.barcode.onmarked = (type, result, file) => {
-				console.log('扫码成功:', result)
-				// 停止扫码
-				this.barcode.cancel()
-				// 处理结果
-				this.handleScanResult(result)
+			// 检查 plus 是否就绪
+			if (typeof plus !== 'undefined') {
+				initScan()
+			} else {
+				document.addEventListener('plusready', initScan, false)
 			}
-			
-			// 监听扫码错误
-			this.barcode.onerror = (e) => {
-				console.error('扫码错误:', e)
-				uni.showToast({
-					title: '扫码失败',
-					icon: 'none'
-				})
-			}
-			
-			// 将扫码控件添加到当前页面
-			currentWebview.append(this.barcode)
-			
-			// 开始扫码
-			this.barcode.start()
 			// #endif
 			
-			// #ifdef H5
-			// H5环境不支持
-			console.log('H5环境不支持扫码')
-			// #endif
-			
-			// #ifdef MP
-			// 小程序环境使用系统扫码
-			uni.scanCode({
-				scanType: ['qrCode', 'barCode'],
+			// #ifdef MP-WEIXIN
+			// 小程序环境，提示用户
+			uni.showModal({
+				title: '提示',
+				content: '小程序环境将使用系统扫码功能',
+				confirmText: '开始扫码',
 				success: (res) => {
-					this.handleScanResult(res.result)
-				},
-				fail: () => {
-					this.goBack()
+					if (res.confirm) {
+						uni.scanCode({
+							scanType: ['qrCode', 'barCode'],
+							success: (scanRes) => {
+								this.handleScanResult(scanRes.result)
+							},
+							fail: () => {
+								this.goBack()
+							}
+						})
+					} else {
+						this.goBack()
+					}
 				}
 			})
 			// #endif
@@ -207,15 +255,34 @@ export default {
 			
 			// #ifdef APP-PLUS
 			if (this.barcode) {
-				this.barcode.setFlash(this.flashlightOn)
+				try {
+					this.barcode.setFlash(this.flashlightOn)
+					uni.showToast({
+						title: this.flashlightOn ? '手电筒已打开' : '手电筒已关闭',
+						icon: 'none',
+						duration: 1000
+					})
+				} catch (error) {
+					console.error('切换手电筒失败:', error)
+					uni.showToast({
+						title: '手电筒功能不可用',
+						icon: 'none'
+					})
+				}
+			} else {
+				uni.showToast({
+					title: '扫码功能未就绪',
+					icon: 'none'
+				})
 			}
 			// #endif
 			
+			// #ifndef APP-PLUS
 			uni.showToast({
-				title: this.flashlightOn ? '手电筒已打开' : '手电筒已关闭',
-				icon: 'none',
-				duration: 1000
+				title: '当前环境不支持手电筒',
+				icon: 'none'
 			})
+			// #endif
 		},
 		
 		// 从相册选择
@@ -230,28 +297,20 @@ export default {
 					})
 					
 					// #ifdef APP-PLUS
-					// 使用 plus.barcode API 识别图片
-					if (this.barcode) {
-						plus.barcode.scan(tempFilePath, (type, result) => {
-							uni.hideLoading()
-							console.log('相册识别成功:', result)
-							this.handleScanResult(result)
-						}, (error) => {
-							uni.hideLoading()
-							console.error('相册识别失败:', error)
-							uni.showToast({
-								title: '未识别到二维码',
-								icon: 'none',
-								duration: 2000
-							})
-						})
-					} else {
+					// 使用 plus.barcode.scan 静态方法识别图片
+					plus.barcode.scan(tempFilePath, (type, result) => {
 						uni.hideLoading()
+						console.log('相册识别成功:', type, result)
+						this.handleScanResult(result)
+					}, (error) => {
+						uni.hideLoading()
+						console.error('相册识别失败:', error)
 						uni.showToast({
-							title: '扫码功能未就绪',
-							icon: 'none'
+							title: '未识别到二维码',
+							icon: 'none',
+							duration: 2000
 						})
-					}
+					}, [plus.barcode.QR, plus.barcode.EAN13, plus.barcode.EAN8])
 					// #endif
 					
 					// #ifdef H5
@@ -368,13 +427,28 @@ export default {
 	top: 0;
 	left: 0;
 	z-index: 999;
+	pointer-events: none;
 }
 
-/* 扫码区域容器 */
+/* 扫码区域容器 (plus.barcode会在这里渲染) */
 .scan-container {
 	width: 100%;
 	position: relative;
 	background: #000;
+}
+
+/* H5覆盖层 */
+.h5-overlay {
+	position: fixed;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	background: linear-gradient(180deg, #1a1a1a 0%, #000000 100%);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	z-index: 10;
 }
 
 .h5-tips {
@@ -401,13 +475,13 @@ export default {
 
 /* 扫码提示 */
 .scan-tip {
-	position: absolute;
+	position: fixed;
 	bottom: 300rpx;
 	left: 0;
 	right: 0;
 	display: flex;
 	justify-content: center;
-	z-index: 10;
+	z-index: 101;
 }
 
 .tip-text {
@@ -449,10 +523,11 @@ export default {
 
 /* 扫码框 (装饰性，不阻挡扫码) */
 .scan-box {
-	position: absolute;
+	position: fixed;
 	top: 50%;
 	left: 50%;
 	transform: translate(-50%, -50%);
+	margin-top: calc(var(--status-bar-height) / 2);
 	width: 500rpx;
 	height: 500rpx;
 	pointer-events: none;
@@ -464,6 +539,8 @@ export default {
 	height: 100%;
 	position: relative;
 	border-radius: 16rpx;
+	/* 添加半透明遮罩效果 */
+	box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5);
 }
 
 /* 四个角的装饰线 */

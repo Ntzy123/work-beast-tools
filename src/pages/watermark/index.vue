@@ -76,10 +76,19 @@
 			</view>
 
 		<!-- 隐藏的canvas用于绘制 -->
+		<!-- 【关键】canvas 需要设置实际像素尺寸和样式尺寸 -->
 		<canvas 
 			canvas-id="watermarkCanvas" 
 			id="watermarkCanvas"
-			:style="{ width: canvasWidth + 'px', height: canvasHeight + 'px', position: 'fixed', left: '-9999px', top: '-9999px', pointerEvents: 'none', zIndex: -1 }"
+			:style="{ 
+				width: canvasWidth + 'px', 
+				height: canvasHeight + 'px', 
+				position: 'fixed', 
+				left: '-9999px', 
+				top: '-9999px', 
+				pointerEvents: 'none', 
+				zIndex: -1 
+			}"
 		>
 		<!-- Android兼容性提示：确保Canvas宽高正确设置 -->
 		</canvas>
@@ -459,6 +468,7 @@ export default {
 					this.drawRoundedRect(ctx, locBoxX, locBoxY, locBoxWidth, locBoxHeight, borderRadius, bgColor)
 					
 				// 绘制定位图标（水滴形，白色填充，中间圆形空洞）
+				// 【兼容性修改】分两步绘制，先画水滴，再画背景色圆覆盖
 				
 				// 【尺寸参数】（直接使用真实像素值，不缩放）
 				const iconCircleDiameter = 24   // 圆形部分直径 = 24px
@@ -472,14 +482,13 @@ export default {
 				const iconCenterX = locBoxX + 36 // 距离定位框左边缘 36px（12 + 24）
 				const iconCircleCenterY = locBoxY + locBoxHeight / 2 - 3 // 圆心位置（略微上移）
 				
-						ctx.save()
+				ctx.save()
 				ctx.translate(iconCenterX, iconCircleCenterY) // 移动坐标系原点到圆心位置
 				
-				// 【步骤1】绘制外部水滴形状（白色）
-						ctx.beginPath()
+				// 【步骤1】绘制白色水滴形状
+				ctx.beginPath()
 				
 				// (1) 上半部分：圆弧（从左侧180°到右侧0°）
-				// 起点：(-12, 0) → 终点：(12, 0)
 				ctx.arc(
 					0, 0,             // 圆心 (0, 0)
 					iconCircleRadius, // 半径 12px
@@ -487,50 +496,43 @@ export default {
 					0,                // 结束角度 0°（右侧）
 					false             // 顺时针
 				)
-				// 画笔当前位置：(12, 0)
 				
-				// (2) 右侧：贝塞尔曲线从右侧圆弧端点到底部尖角右侧
-				// 起点：(12, 0) → 终点：(iconTipWidth/2, iconTipDistance - 1)
-				const tipHalfWidth = iconTipWidth / 2 // 尖角半宽 = 1.25px
-				const tipY = iconTipDistance - 1      // 尖角顶部 Y 坐标（留1px给圆角）
+				// (2) 右侧：贝塞尔曲线到底部尖角
+				const tipHalfWidth = iconTipWidth / 2
+				const tipY = iconTipDistance - 1
 				ctx.bezierCurveTo(
-					iconCircleRadius * 0.65, iconCircleRadius * 0.9,  // 控制点1：(7.8, 10.8) 右侧上部
-					iconCircleRadius * 0.3,  tipY - 4,                // 控制点2：(3.6, 13) 右侧下部
-					tipHalfWidth,            tipY                     // 终点：(1.25, 17) 尖角右侧
+					iconCircleRadius * 0.65, iconCircleRadius * 0.9,
+					iconCircleRadius * 0.3,  tipY - 4,
+					tipHalfWidth,            tipY
 				)
-				// 画笔当前位置：(1.25, 17)
 				
-				// (3) 底部：小圆角连接（让尖角变钝）
-				// 从 (1.25, 17) 经过圆角到 (-1.25, 17)
+				// (3) 底部：小圆角连接
 				ctx.arcTo(
-					0,            iconTipDistance,     // 控制点：(0, 18) 底部中心
-					-tipHalfWidth, tipY,               // 目标点：(-1.25, 17) 尖角左侧
-					1                                  // 圆角半径 1px
+					0,            iconTipDistance,
+					-tipHalfWidth, tipY,
+					1
 				)
-				// 画笔当前位置：(-1.25, 17)
 				
-				// (4) 左侧：贝塞尔曲线从底部尖角左侧回到左侧圆弧起点
-				// 起点：(-1.25, 17) → 终点：(-12, 0)
+				// (4) 左侧：贝塞尔曲线回到起点
 				ctx.bezierCurveTo(
-					-iconCircleRadius * 0.3,  tipY - 4,               // 控制点1：(-3.6, 13) 左侧下部
-					-iconCircleRadius * 0.65, iconCircleRadius * 0.9, // 控制点2：(-7.8, 10.8) 左侧上部
-					-iconCircleRadius,        0                       // 终点：(-12, 0) 回到左侧
+					-iconCircleRadius * 0.3,  tipY - 4,
+					-iconCircleRadius * 0.65, iconCircleRadius * 0.9,
+					-iconCircleRadius,        0
 				)
-				// 画笔当前位置：(-12, 0)，与起点重合
 				
-				ctx.closePath() // 闭合路径
-						ctx.setFillStyle('#ffffff')
-						ctx.fill()
-				
-				// 【步骤2】绘制中间圆形空洞（完全透明）
-				ctx.globalCompositeOperation = 'destination-out'
-				ctx.beginPath()
-				ctx.arc(0, 0, iconHoleRadius, 0, Math.PI * 2) // 圆心 (0, 0)，半径 3.96px
+				ctx.closePath()
 				ctx.setFillStyle('#ffffff')
 				ctx.fill()
-				ctx.globalCompositeOperation = 'source-over'
 				
-						ctx.restore()
+				// 【步骤2】在中间绘制背景色圆形，覆盖出"空洞"效果
+				// 使用定位框的背景色（半透明黑色）
+				ctx.beginPath()
+				ctx.arc(0, 0, iconHoleRadius, 0, Math.PI * 2)
+				ctx.closePath()
+				ctx.setFillStyle(bgColor) // 使用与定位框相同的背景色
+				ctx.fill()
+				
+				ctx.restore()
 						
 					// 绘制定位文字（垂直居中）
 						ctx.setFillStyle('#ffffff')
@@ -547,15 +549,30 @@ export default {
 							}
 							
 							console.log('开始生成二维码，文本长度:', qrCodeText.length)
+							console.log('二维码文本:', qrCodeText)
 							
-							const qrData = QRCode.create(qrCodeText, {
-								errorCorrectionLevel: 'L' // 7% 容错率
-							})
+							// 【移动端兼容性优化】异步生成二维码，避免阻塞主线程
+							let qrData
+							try {
+								// 尝试使用同步方式生成
+								qrData = QRCode.create(qrCodeText, {
+									errorCorrectionLevel: 'L' // 7% 容错率
+								})
+								console.log(`二维码数据生成成功: 版本${qrData.version}, 模块数${qrData.modules.size}x${qrData.modules.size}`)
+							} catch (createErr) {
+								console.error('QRCode.create 失败，尝试备用方案:', createErr)
+								// 如果 create 失败，尝试使用 toDataURL (H5环境) 或者跳过
+								throw new Error('二维码生成失败: ' + createErr.message)
+							}
 							
-							console.log(`二维码数据生成成功: 版本${qrData.version}, 模块数${qrData.modules.size}x${qrData.modules.size}`)
+							if (!qrData || !qrData.modules || !qrData.modules.data) {
+								throw new Error('二维码数据无效')
+							}
 							
 							const modules = qrData.modules.data
 							const mCount = qrData.modules.size
+							
+							console.log(`二维码模块信息: size=${mCount}, 数据长度=${modules.length}`)
 							
 							// 按用户要求设置参数
 							const qrSize = 258 // 总尺寸固定为 258x258
@@ -577,6 +594,7 @@ export default {
 							ctx.setFillStyle('#000000')
 							let rectCount = 0
 							
+							// 【优化】批量绘制，减少 fillRect 调用次数
 							for (let row = 0; row < mCount; row++) {
 								for (let col = 0; col < mCount; col++) {
 									const index = row * mCount + col
@@ -600,43 +618,74 @@ export default {
 							console.log(`二维码绘制完成: 共绘制${rectCount}个黑色模块`)
 							
 					} catch (qrErr) {
-						console.error('二维码生成异常:', qrErr)
+						console.error('=== 二维码生成异常 ===')
+						console.error('错误类型:', qrErr.name)
 						console.error('错误详情:', qrErr.message)
 						console.error('错误堆栈:', qrErr.stack)
+						
+						// 【降级处理】如果二维码生成失败，在位置绘制一个提示文字
+						const qrSize = 258
+						const qrX = targetWidth - qrSize
+						const qrY = targetHeight - qrSize
+						
+						ctx.setFillStyle('#ffffff')
+						ctx.fillRect(qrX, qrY, qrSize, qrSize)
+						
+						ctx.setFillStyle('#ff0000')
+						ctx.setFontSize(20)
+						ctx.setTextAlign('center')
+						ctx.fillText('二维码生成失败', qrX + qrSize / 2, qrY + qrSize / 2 - 20)
+						ctx.setFontSize(16)
+						ctx.fillText(qrErr.message.substring(0, 20), qrX + qrSize / 2, qrY + qrSize / 2 + 10)
+						
+						console.log('已绘制错误提示')
 					}
 					
 					// 统一绘制所有内容到画布
 					console.log('准备调用ctx.draw()提交绘制')
-						ctx.draw(false, () => {
-							console.log('ctx.draw()回调执行，Canvas绘制已提交')
-							// 将canvas转为图片（jpg格式）
-							setTimeout(() => {
-								console.log('开始调用canvasToTempFilePath')
-								uni.canvasToTempFilePath({
-									canvasId: 'watermarkCanvas',
-									width: targetWidth,
-									height: targetHeight,
-									destWidth: targetWidth,
-									destHeight: targetHeight,
-									fileType: 'jpg', // 指定输出为jpg格式
-									quality: 0.9,    // 图片质量（0-1，默认0.9）
-									success: (res) => {
-										console.log('canvasToTempFilePath成功，临时文件路径:', res.tempFilePath)
-										// 处理EXIF数据
-										this.processImageWithExif(res.tempFilePath)
-									},
-									fail: (err) => {
-										console.error('canvasToTempFilePath失败:', err)
-										console.error('错误码:', err.errMsg)
-										uni.hideLoading()
-										uni.showToast({
-											title: '生成失败',
-											icon: 'none'
-										})
-									}
-								}, this)
-							}, 500)
-						})
+					ctx.draw(false, () => {
+						console.log('ctx.draw()回调执行，Canvas绘制已提交')
+						
+						// 【关键】在不同平台使用不同的延迟时间，确保绘制完成
+						// H5 环境较快，APP 环境需要更多时间
+						let delay = 500
+						// #ifdef APP-PLUS
+						delay = 800
+						console.log('APP 环境，使用更长的延迟:', delay)
+						// #endif
+						// #ifdef H5
+						delay = 300
+						console.log('H5 环境，使用较短的延迟:', delay)
+						// #endif
+						
+						// 将canvas转为图片（jpg格式）
+						setTimeout(() => {
+							console.log('开始调用canvasToTempFilePath')
+							uni.canvasToTempFilePath({
+								canvasId: 'watermarkCanvas',
+								width: targetWidth,
+								height: targetHeight,
+								destWidth: targetWidth,
+								destHeight: targetHeight,
+								fileType: 'jpg', // 指定输出为jpg格式
+								quality: 0.9,    // 图片质量（0-1，默认0.9）
+								success: (res) => {
+									console.log('canvasToTempFilePath成功，临时文件路径:', res.tempFilePath)
+									// 处理EXIF数据
+									this.processImageWithExif(res.tempFilePath)
+								},
+								fail: (err) => {
+									console.error('canvasToTempFilePath失败:', err)
+									console.error('错误码:', err.errMsg)
+									uni.hideLoading()
+									uni.showToast({
+										title: '生成失败',
+										icon: 'none'
+									})
+								}
+							}, this)
+						}, delay)
+					})
 					}) // 关闭 $nextTick 回调
 				},
 				fail: () => {
@@ -895,126 +944,323 @@ export default {
 			// #endif
 
 			// #ifndef H5
-			// APP环境：保存到指定目录 /storage/emulated/0/lebang/waterimages/
-			this.saveImageToCustomPath()
+			// APP环境：先请求权限，再保存
+			this.requestStoragePermission()
 			// #endif
 		},
 		
 		// #ifndef H5
+		// 请求存储权限
+		requestStoragePermission() {
+			console.log('开始请求存储权限')
+			
+			// 检查 plus 是否准备就绪
+			if (typeof plus === 'undefined') {
+				console.error('plus 模块未准备就绪')
+				uni.showToast({
+					title: 'APP环境未准备就绪',
+					icon: 'none',
+					duration: 2000
+				})
+				return
+			}
+			
+			// 判断 Android 版本，Android 13 (API 33) 及以上使用新的权限模型
+			const main = plus.android.runtimeMainActivity()
+			const Build = plus.android.importClass('android.os.Build')
+			const sdkInt = Build.VERSION.SDK_INT
+			
+			console.log('Android SDK 版本:', sdkInt)
+			
+			// Android 13+ 使用 READ_MEDIA_IMAGES 权限
+			if (sdkInt >= 33) {
+				const permissions = ['android.permission.READ_MEDIA_IMAGES']
+				this.checkAndRequestPermissions(permissions)
+			} 
+			// Android 6.0 - 12 使用传统存储权限
+			else if (sdkInt >= 23) {
+				const permissions = [
+					'android.permission.READ_EXTERNAL_STORAGE',
+					'android.permission.WRITE_EXTERNAL_STORAGE'
+				]
+				this.checkAndRequestPermissions(permissions)
+			} 
+			// Android 6.0 以下直接保存
+			else {
+				console.log('Android 版本低于 6.0，直接保存')
+				this.saveImageToCustomPath()
+			}
+		},
+		
+		// 检查并请求权限
+		checkAndRequestPermissions(permissions) {
+			const main = plus.android.runtimeMainActivity()
+			const PackageManager = plus.android.importClass('android.content.pm.PackageManager')
+			const ArrayList = plus.android.importClass('java.util.ArrayList')
+			
+			const permissionsToRequest = new ArrayList()
+			let allGranted = true
+			
+			// 检查每个权限是否已授予
+			for (let permission of permissions) {
+				const result = main.checkSelfPermission(permission)
+				console.log(`权限 ${permission} 检查结果:`, result)
+				if (result !== PackageManager.PERMISSION_GRANTED) {
+					permissionsToRequest.add(permission)
+					allGranted = false
+				}
+			}
+			
+			// 如果所有权限都已授予，直接保存
+			if (allGranted) {
+				console.log('所有权限已授予，开始保存')
+				this.saveImageToCustomPath()
+				return
+			}
+			
+			// 请求未授予的权限
+			console.log('请求权限:', permissionsToRequest.toArray())
+			
+			// 使用 uni.requestAndroidPermission 请求权限
+			const permissionNames = []
+			for (let i = 0; i < permissionsToRequest.size(); i++) {
+				permissionNames.push(permissionsToRequest.get(i))
+			}
+			
+			// 依次请求每个权限
+			this.requestPermissionsSequentially(permissionNames, 0)
+		},
+		
+		// 递归请求权限
+		requestPermissionsSequentially(permissions, index) {
+			if (index >= permissions.length) {
+				// 所有权限请求完成，开始保存
+				console.log('权限请求完成，开始保存')
+				this.saveImageToCustomPath()
+				return
+			}
+			
+			const permission = permissions[index]
+			console.log(`请求权限 (${index + 1}/${permissions.length}):`, permission)
+			
+			plus.android.requestPermissions(
+				[permission],
+				(resultObj) => {
+					console.log('权限请求结果:', resultObj)
+					if (resultObj.granted && resultObj.granted.length > 0) {
+						console.log('权限已授予:', resultObj.granted[0])
+					} else if (resultObj.deniedAlways && resultObj.deniedAlways.length > 0) {
+						console.log('权限被永久拒绝:', resultObj.deniedAlways[0])
+					} else if (resultObj.deniedPresent && resultObj.deniedPresent.length > 0) {
+						console.log('权限被拒绝:', resultObj.deniedPresent[0])
+					}
+					
+					// 继续请求下一个权限
+					this.requestPermissionsSequentially(permissions, index + 1)
+				},
+				(error) => {
+					console.error('权限请求失败:', error)
+					// 即使失败也继续请求下一个
+					this.requestPermissionsSequentially(permissions, index + 1)
+				}
+			)
+		},
+		// #endif
+		
+		// #ifndef H5
 		// APP端保存到自定义路径
 		saveImageToCustomPath() {
-			// 获取内部存储根目录（Android: /storage/emulated/0/）
-			const publicDocsPath = plus.io.PUBLIC_DOCUMENTS
-			const storagePath = publicDocsPath.replace('/Documents', '') // 获取 /storage/emulated/0
-			const basePath = `${storagePath}/lebang/waterimages` // 内部存储/lebang/waterimages
-			let fileName = this.generateTimestampFileName()
+			console.log('=== 开始保存图片 ===')
+			console.log('resultImage 路径:', this.resultImage)
 			
-			console.log('目标保存路径:', basePath)
-			
-			// 递归创建目录
-			const createDirRecursive = (path, callback) => {
-				plus.io.resolveLocalFileSystemURL(path, 
-					(entry) => {
-						// 目录已存在
-						callback(true, entry)
-					}, 
-					(err) => {
-						// 目录不存在，创建
-						const parentPath = path.substring(0, path.lastIndexOf('/'))
-						createDirRecursive(parentPath, (success, parentEntry) => {
-							if (success && parentEntry) {
-								const dirName = path.substring(path.lastIndexOf('/') + 1)
-								parentEntry.getDirectory(dirName, { create: true }, 
-									(newEntry) => {
-										callback(true, newEntry)
-									},
-									(createErr) => {
-										console.error('创建目录失败:', createErr)
-										callback(false, null)
-									}
-								)
-							} else {
-								callback(false, null)
-							}
-						})
-					}
-				)
+			// 检查 plus 是否可用
+			if (typeof plus === 'undefined') {
+				console.error('plus 模块未定义')
+				uni.showToast({
+					title: 'APP环境未就绪',
+					icon: 'none'
+				})
+				return
 			}
 			
-			// 检查并调整文件名（避免重名）
-			const getUniqueFileName = (baseFileName, callback) => {
-				const finalPath = `${basePath}/${baseFileName}`
-				plus.io.resolveLocalFileSystemURL(finalPath,
-					(entry) => {
-						// 文件存在，递增最后一位数字
-						const nameWithoutExt = baseFileName.replace('.jpg', '')
-						const lastChar = nameWithoutExt[nameWithoutExt.length - 1]
-						const newLastChar = String((parseInt(lastChar) + 1) % 10)
-						const newFileName = nameWithoutExt.substring(0, nameWithoutExt.length - 1) + newLastChar + '.jpg'
-						getUniqueFileName(newFileName, callback) // 递归检查
-					},
-					(err) => {
-						// 文件不存在，可以使用
-						callback(baseFileName, finalPath)
-					}
-				)
-			}
+			uni.showLoading({
+				title: '保存中...',
+				mask: true
+			})
 			
-			// 1. 创建目录
-			createDirRecursive(basePath, (dirSuccess, dirEntry) => {
-				if (!dirSuccess) {
-					uni.showToast({
-						title: '创建目录失败',
-						icon: 'none'
-					})
-					return
-				}
+			try {
+				// 获取内部存储根目录（Android: /storage/emulated/0/）
+				const publicDocsPath = plus.io.PUBLIC_DOCUMENTS
+				console.log('PUBLIC_DOCUMENTS:', publicDocsPath)
 				
-				// 2. 获取唯一文件名
-				getUniqueFileName(fileName, (finalFileName, finalPath) => {
-					// 3. 复制临时文件到目标路径
-					plus.io.resolveLocalFileSystemURL(this.resultImage, 
+				const storagePath = publicDocsPath.replace('/Documents', '') // 获取 /storage/emulated/0
+				console.log('storagePath:', storagePath)
+				
+				const basePath = `${storagePath}/lebang/waterimages` // 内部存储/lebang/waterimages
+				let fileName = this.generateTimestampFileName()
+				
+				console.log('目标保存路径:', basePath)
+				console.log('文件名:', fileName)
+				
+				// 递归创建目录
+				const createDirRecursive = (path, callback) => {
+					console.log('尝试访问/创建目录:', path)
+					plus.io.resolveLocalFileSystemURL(path, 
 						(entry) => {
-							entry.copyTo(dirEntry, finalFileName, 
-								(newEntry) => {
-									uni.showToast({
-										title: '保存成功',
-										icon: 'success'
-									})
-									console.log('文件已保存到:', newEntry.fullPath)
-								},
-								(err) => {
-									console.error('文件复制失败:', err)
-									// 如果复制失败，尝试保存到相册
-									uni.saveImageToPhotosAlbum({
-										filePath: this.resultImage,
-										success: () => {
-											uni.showToast({
-												title: '已保存到相册',
-												icon: 'success'
-											})
-										},
-										fail: (albumErr) => {
-											console.error('保存到相册也失败:', albumErr)
-											uni.showToast({
-												title: '保存失败',
-												icon: 'none'
-											})
-										}
-									})
-								}
-							)
-						},
+							// 目录已存在
+							console.log('目录已存在:', path)
+							callback(true, entry)
+						}, 
 						(err) => {
-							console.error('无法访问临时文件:', err)
-							uni.showToast({
-								title: '保存失败',
-								icon: 'none'
+							// 目录不存在，创建
+							console.log('目录不存在，准备创建:', path, 'error:', err)
+							const parentPath = path.substring(0, path.lastIndexOf('/'))
+							console.log('父目录路径:', parentPath)
+							
+							createDirRecursive(parentPath, (success, parentEntry) => {
+								if (success && parentEntry) {
+									const dirName = path.substring(path.lastIndexOf('/') + 1)
+									console.log('创建子目录:', dirName)
+									
+									parentEntry.getDirectory(dirName, { create: true }, 
+										(newEntry) => {
+											console.log('子目录创建成功:', dirName)
+											callback(true, newEntry)
+										},
+										(createErr) => {
+											console.error('创建子目录失败:', dirName, createErr)
+											callback(false, null)
+										}
+									)
+								} else {
+									console.error('父目录创建失败')
+									callback(false, null)
+								}
 							})
 						}
 					)
+				}
+				
+				// 检查并调整文件名（避免重名）
+				const getUniqueFileName = (baseFileName, callback) => {
+					const finalPath = `${basePath}/${baseFileName}`
+					plus.io.resolveLocalFileSystemURL(finalPath,
+						(entry) => {
+							// 文件存在，递增最后一位数字
+							console.log('文件已存在，生成新文件名:', baseFileName)
+							const nameWithoutExt = baseFileName.replace('.jpg', '')
+							const lastChar = nameWithoutExt[nameWithoutExt.length - 1]
+							const newLastChar = String((parseInt(lastChar) + 1) % 10)
+							const newFileName = nameWithoutExt.substring(0, nameWithoutExt.length - 1) + newLastChar + '.jpg'
+							getUniqueFileName(newFileName, callback) // 递归检查
+						},
+						(err) => {
+							// 文件不存在，可以使用
+							console.log('文件名可用:', baseFileName)
+							callback(baseFileName, finalPath)
+						}
+					)
+				}
+				
+				// 1. 创建目录
+				createDirRecursive(basePath, (dirSuccess, dirEntry) => {
+					if (!dirSuccess) {
+						console.error('目录创建失败')
+						uni.hideLoading()
+						uni.showToast({
+							title: '创建目录失败',
+							icon: 'none',
+							duration: 2000
+						})
+						return
+					}
+					
+					console.log('目录准备完成，开始处理文件')
+					
+					// 2. 获取唯一文件名
+					getUniqueFileName(fileName, (finalFileName, finalPath) => {
+						console.log('最终文件名:', finalFileName)
+						console.log('最终完整路径:', finalPath)
+						console.log('准备复制文件，源路径:', this.resultImage)
+						
+						// 3. 复制临时文件到目标路径
+						plus.io.resolveLocalFileSystemURL(this.resultImage, 
+							(entry) => {
+								console.log('源文件访问成功，开始复制')
+								console.log('源文件信息:', {
+									name: entry.name,
+									fullPath: entry.fullPath,
+									isFile: entry.isFile,
+									isDirectory: entry.isDirectory
+								})
+								
+								entry.copyTo(dirEntry, finalFileName, 
+									(newEntry) => {
+										console.log('文件复制成功!')
+										console.log('新文件路径:', newEntry.fullPath)
+										uni.hideLoading()
+										uni.showToast({
+											title: '保存成功',
+											icon: 'success',
+											duration: 2000
+										})
+									},
+									(err) => {
+										console.error('文件复制失败，错误详情:', {
+											code: err.code,
+											message: err.message
+										})
+										uni.hideLoading()
+										
+										// 如果复制失败，尝试保存到相册
+										console.log('尝试备用方案：保存到相册')
+										uni.saveImageToPhotosAlbum({
+											filePath: this.resultImage,
+											success: () => {
+												console.log('保存到相册成功')
+												uni.showToast({
+													title: '已保存到相册',
+													icon: 'success',
+													duration: 2000
+												})
+											},
+											fail: (albumErr) => {
+												console.error('保存到相册也失败:', albumErr)
+												uni.showToast({
+													title: '保存失败: ' + (albumErr.errMsg || '未知错误'),
+													icon: 'none',
+													duration: 3000
+												})
+											}
+										})
+									}
+								)
+							},
+							(err) => {
+								console.error('无法访问源文件，错误详情:', {
+									code: err.code,
+									message: err.message,
+									path: this.resultImage
+								})
+								uni.hideLoading()
+								uni.showToast({
+									title: '源文件访问失败',
+									icon: 'none',
+									duration: 2000
+								})
+							}
+						)
+					})
 				})
-			})
+			} catch (error) {
+				console.error('保存图片异常:', error)
+				uni.hideLoading()
+				uni.showToast({
+					title: '保存失败: ' + error.message,
+					icon: 'none',
+					duration: 3000
+				})
+			}
 		},
 		// #endif
 		
