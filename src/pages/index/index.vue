@@ -93,8 +93,11 @@ export default {
 	},
 	methods: {
 		handleScan() {
-			uni.navigateTo({
-				url: '/pages/scan/index'
+			// 扫码功能待实现
+			uni.showToast({
+				title: '扫码功能开发中',
+				icon: 'none',
+				duration: 2000
 			})
 		},
 		handleSettings() {
