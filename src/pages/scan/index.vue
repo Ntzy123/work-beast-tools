@@ -188,15 +188,28 @@ export default {
 			try {
 				this.addDebugLog('创建barcode扫码控件', 'info')
 				
+				// 检查plus对象
+				if (!plus || !plus.barcode) {
+					this.addDebugLog('plus.barcode不存在', 'error')
+					this.useFallbackScan()
+					return
+				}
+				
 				const pages = getCurrentPages()
 				const page = pages[pages.length - 1]
 				const currentWebview = page.$getAppWebview()
+				
+				if (!currentWebview) {
+					this.addDebugLog('无法获取webview', 'error')
+					this.useFallbackScan()
+					return
+				}
 				
 				// 获取系统信息
 				const sys = plus.os.name
 				this.addDebugLog(`系统: ${sys}`, 'info')
 				
-				// 创建barcode扫码控件（从顶部0开始，覆盖整个屏幕）
+				// 创建barcode扫码控件
 				this.barcode = plus.barcode.create('barcode', 
 					[plus.barcode.QR, plus.barcode.EAN13, plus.barcode.EAN8], 
 					{
@@ -207,6 +220,12 @@ export default {
 						position: 'static'
 					}
 				)
+				
+				if (!this.barcode) {
+					this.addDebugLog('barcode控件创建返回null', 'error')
+					this.useFallbackScan()
+					return
+				}
 				
 				this.addDebugLog('barcode控件创建成功', 'success')
 				
@@ -226,9 +245,18 @@ export default {
 					this.addDebugLog(`扫码错误: ${JSON.stringify(error)}`, 'error')
 				}
 				
-				// 将barcode控件添加到webview
+				// 将barcode控件添加到webview（设置z-index确保在底层）
 				currentWebview.append(this.barcode)
 				this.addDebugLog('barcode控件已添加到页面', 'info')
+				
+				// 设置barcode为底层（让cover-view可以点击）
+				this.barcode.setStyle({
+					top: '0px',
+					left: '0px',
+					width: '100%',
+					height: '100%',
+					position: 'static'
+				})
 				
 				// 延迟启动扫码，确保界面渲染完成
 				setTimeout(() => {
@@ -236,7 +264,7 @@ export default {
 						this.barcode.start()
 						this.addDebugLog('开始扫码', 'success')
 					}
-				}, 200)
+				}, 300)
 				
 			} catch (error) {
 				this.addDebugLog(`创建barcode失败: ${error.message}`, 'error')
@@ -502,7 +530,8 @@ export default {
 	right: 0;
 	display: flex;
 	justify-content: center;
-	z-index: 101;
+	z-index: 10001;
+	pointer-events: none;
 }
 
 .tip-text {
@@ -520,11 +549,10 @@ export default {
 	top: 50%;
 	left: 50%;
 	transform: translate(-50%, -50%);
-	margin-top: calc(var(--status-bar-height) / 2);
 	width: 500rpx;
 	height: 500rpx;
 	pointer-events: none;
-	z-index: 100;
+	z-index: 10001;
 }
 
 .scan-border {
@@ -621,7 +649,8 @@ export default {
 	justify-content: space-around;
 	align-items: center;
 	padding: 0 120rpx;
-	z-index: 10000;
+	z-index: 10002;
+	pointer-events: auto;
 }
 
 .tool-btn {
@@ -766,12 +795,13 @@ export default {
 	bottom: 0;
 	left: 0;
 	right: 0;
-	max-height: 400rpx;
-	background: rgba(0, 0, 0, 0.9);
-	z-index: 2001;
+	max-height: 300rpx;
+	background: rgba(0, 0, 0, 0.95);
+	z-index: 10003;
 	display: flex;
 	flex-direction: column;
 	border-top: 2rpx solid rgba(255, 255, 255, 0.1);
+	pointer-events: auto;
 }
 
 .debug-header {

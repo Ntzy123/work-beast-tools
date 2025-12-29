@@ -1064,37 +1064,55 @@ export default {
 			)
 		},
 		
-		// 复制文件到目标目录
+		// 复制文件到目标目录（自动处理重名）
 		copyFileToTarget(timeoutId, targetDirEntry, fileName) {
 			this.saveStatus += '\n\n🔄 访问源文件...'
 			
 			plus.io.resolveLocalFileSystemURL(this.resultImage, (sourceEntry) => {
 				this.saveStatus += '\n✅ 源文件访问成功'
-				this.saveStatus += '\n\n🔄 正在复制...'
+				this.saveStatus += '\n\n🔄 检查文件名是否重复...'
 				
-				sourceEntry.copyTo(targetDirEntry, fileName,
-					(newEntry) => {
-						clearTimeout(timeoutId)
-						uni.hideLoading()
-						this.saveStatus += '\n\n✅ 保存成功！'
-						this.saveStatus += `\n📍 完整路径:\n   ${newEntry.fullPath}`
-						uni.showToast({
-							title: '保存成功',
-							icon: 'success'
-						})
-					},
-					(copyErr) => {
-						clearTimeout(timeoutId)
-						uni.hideLoading()
-						this.saveStatus += `\n\n❌ 文件复制失败`
-						this.saveStatus += `\n   错误码: ${copyErr.code}`
-						this.saveStatus += `\n   错误信息: ${copyErr.message || '未知'}`
-						uni.showToast({
-							title: '复制失败',
-							icon: 'none'
-						})
+				// 递归检查文件名，如果重复则递增最后一位数字
+				this.findAvailableFileName(targetDirEntry, fileName, (finalFileName) => {
+					if (finalFileName !== fileName) {
+						this.saveStatus += `\n⚠️ 文件名已存在，已更名为: ${finalFileName}`
+					} else {
+						this.saveStatus += '\n✅ 文件名可用'
 					}
-				)
+					
+					this.saveStatus += '\n\n🔄 正在复制...'
+					
+					sourceEntry.copyTo(targetDirEntry, finalFileName,
+						(newEntry) => {
+							clearTimeout(timeoutId)
+							uni.hideLoading()
+							this.saveStatus += '\n\n✅ 文件保存成功！'
+							this.saveStatus += `\n📍 完整路径:\n   ${newEntry.fullPath}`
+							
+							// 🔑 关键：刷新媒体库，让其他APP能读取到
+							this.saveStatus += '\n\n🔄 刷新媒体库...'
+							this.scanMediaFile(newEntry.fullPath, () => {
+								this.saveStatus += '\n✅ 媒体库已更新'
+								this.saveStatus += '\n\n✨ 其他APP现在可以读取此文件了！'
+								uni.showToast({
+									title: '保存成功',
+									icon: 'success'
+								})
+							})
+						},
+						(copyErr) => {
+							clearTimeout(timeoutId)
+							uni.hideLoading()
+							this.saveStatus += `\n\n❌ 文件复制失败`
+							this.saveStatus += `\n   错误码: ${copyErr.code}`
+							this.saveStatus += `\n   错误信息: ${copyErr.message || '未知'}`
+							uni.showToast({
+								title: '复制失败',
+								icon: 'none'
+							})
+						}
+					)
+				})
 			}, (sourceErr) => {
 				clearTimeout(timeoutId)
 				uni.hideLoading()
@@ -1106,6 +1124,68 @@ export default {
 					icon: 'none'
 				})
 			})
+		},
+		
+		// 查找可用的文件名（处理重名）
+		findAvailableFileName(dirEntry, fileName, callback) {
+			const targetPath = dirEntry.fullPath + fileName
+			
+			plus.io.resolveLocalFileSystemURL(targetPath,
+				(entry) => {
+					// 文件已存在，需要更名
+					const nameWithoutExt = fileName.replace('.jpg', '')
+					const lastChar = nameWithoutExt[nameWithoutExt.length - 1]
+					let newFileName
+					
+					// 如果最后一位是数字，递增它
+					if (!isNaN(parseInt(lastChar))) {
+						const newLastDigit = (parseInt(lastChar) + 1) % 10
+						newFileName = nameWithoutExt.substring(0, nameWithoutExt.length - 1) + newLastDigit + '.jpg'
+					} else {
+						// 最后一位不是数字，添加 _1
+						newFileName = nameWithoutExt + '1.jpg'
+					}
+					
+					// 递归检查新文件名
+					this.findAvailableFileName(dirEntry, newFileName, callback)
+				},
+				(err) => {
+					// 文件不存在，可以使用这个文件名
+					callback(fileName)
+				}
+			)
+		},
+		
+		// 刷新媒体库（让其他APP能读取到文件）
+		scanMediaFile(filePath, callback) {
+			try {
+				const main = plus.android.runtimeMainActivity()
+				const Intent = plus.android.importClass('android.content.Intent')
+				const Uri = plus.android.importClass('android.net.Uri')
+				const File = plus.android.importClass('java.io.File')
+				
+				// 创建文件对象
+				const file = new File(filePath)
+				const uri = Uri.fromFile(file)
+				
+				// 发送媒体扫描广播
+				const intent = new Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE)
+				intent.setData(uri)
+				main.sendBroadcast(intent)
+				
+				console.log('媒体扫描广播已发送:', filePath)
+				
+				if (callback) {
+					// 延迟一下确保扫描完成
+					setTimeout(callback, 500)
+				}
+			} catch (e) {
+				console.error('媒体扫描失败:', e)
+				// 即使扫描失败也执行回调
+				if (callback) {
+					callback()
+				}
+			}
 		},
 		// #endif
 		
