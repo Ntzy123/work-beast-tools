@@ -68,16 +68,92 @@
 				<text class="nav-label">我的</text>
 			</view>
 		</view>
+
+		<!-- 扫码结果弹窗 -->
+		<view class="scan-modal" v-if="showScanModal" @click="closeScanModal">
+			<view class="scan-modal-content" @click.stop>
+				<view class="scan-modal-header">
+					<text class="scan-modal-title">扫码结果</text>
+					<view class="scan-modal-close" @click="closeScanModal">✕</view>
+				</view>
+				<view class="scan-modal-body">
+					<view class="scan-result-type" v-if="scanResult.scanType">
+						<text class="scan-label">类型：</text>
+						<text class="scan-value">{{ scanResult.scanType }}</text>
+					</view>
+					
+					<!-- 如果解密成功，显示格式化后的数据 -->
+					<view v-if="scanResult.isEncrypted && scanResult.decrypted" class="decrypted-content">
+						<view class="decrypted-header">
+							<text class="decrypted-title">🔓 已解密的水印信息</text>
+						</view>
+						<view 
+							class="decrypted-item" 
+							v-for="(item, index) in formatDecryptedData(scanResult.decrypted)" 
+							:key="index"
+						>
+							<view class="decrypted-item-label">{{ item.label }}：</view>
+							<view class="decrypted-item-value">{{ item.value }}</view>
+							<view class="decrypted-item-desc" v-if="item.description">{{ item.description }}</view>
+						</view>
+					</view>
+					
+					<!-- 如果是加密格式但解密失败，显示提示 -->
+					<view v-else-if="scanResult.isEncrypted && !scanResult.decrypted" class="decrypt-failed">
+						<text class="decrypt-failed-text">⚠️ 解密失败，显示原始内容</text>
+					</view>
+					
+					<!-- 原始内容显示 -->
+					<view class="scan-result-content" v-if="!scanResult.isEncrypted || !scanResult.decrypted">
+						<text class="scan-label">内容：</text>
+						<text class="scan-value scan-content">{{ scanResult.result }}</text>
+					</view>
+					
+					<!-- URL检测 -->
+					<view class="scan-result-url" v-if="!scanResult.isEncrypted && isUrl(scanResult.result)">
+						<text class="scan-label">网址：</text>
+						<text class="scan-value scan-url">{{ scanResult.result }}</text>
+					</view>
+				</view>
+				<view class="scan-modal-footer">
+					<view class="scan-modal-btn cancel-btn" @click="closeScanModal">关闭</view>
+					<view 
+						class="scan-modal-btn confirm-btn" 
+						v-if="!scanResult.isEncrypted && isUrl(scanResult.result)"
+						@click="openScanUrl"
+					>
+						打开网址
+					</view>
+					<view 
+						class="scan-modal-btn copy-btn" 
+						v-else
+						@click="copyScanResult"
+					>
+						复制内容
+					</view>
+				</view>
+			</view>
+		</view>
 	</view>
 </template>
 
 <script>
+import CryptoJS from 'crypto-js'
+
 export default {
 	data() {
 		return {
 			statusBarHeight: 0,
 			userName: '张三',
 			currentTab: 0,
+			showScanModal: false,
+			scanResult: {
+				result: '',
+				scanType: '',
+				decrypted: null, // 解密后的数据
+				isEncrypted: false // 是否为加密的二维码
+			},
+			encryptionKey: 'e373d090928170eb', // 默认加密key
 			utilityApps: [
 				{ icon: '🖼️', name: '添加水印', desc: '图片水印工具', path: 'pages/watermark/index' },
 				{ icon: '🌙', name: '自动夜答', desc: '自动夜答管理网站', url: 'http://aec.niyuki.icu' },
@@ -90,28 +166,254 @@ export default {
 		// 获取状态栏高度
 		const systemInfo = uni.getSystemInfoSync()
 		this.statusBarHeight = systemInfo.statusBarHeight || 0
+		
+		// 从缓存中读取加密key，如果没有则使用默认值
+		const cachedKey = uni.getStorageSync('watermark_encryption_key')
+		if (cachedKey) {
+			this.encryptionKey = cachedKey
+		} else {
+			// 首次使用，保存默认key到缓存
+			uni.setStorageSync('watermark_encryption_key', this.encryptionKey)
+		}
 	},
 	methods: {
+		// 从服务器获取最新的加密key（与watermark保持一致）
+		async fetchKeyFromServer() {
+			try {
+				// 动态导入配置文件
+				const apiConfig = await import('@/config/api.config.json')
+				const config = apiConfig.default.watermarkKey
+				
+				// 发起HTTP请求
+				const response = await new Promise((resolve, reject) => {
+					uni.request({
+						url: config.url,
+						method: config.method,
+						header: config.headers,
+						success: (res) => {
+							resolve(res)
+						},
+						fail: (err) => {
+							reject(err)
+						}
+					})
+				})
+				
+				// 检查响应是否成功
+				if (response.statusCode === 200 && response.data) {
+					const data = response.data
+					if (data.code === 0 && data.result && data.result.key) {
+						// 更新key到缓存
+						const newKey = data.result.key
+						this.encryptionKey = newKey
+						uni.setStorageSync('watermark_encryption_key', newKey)
+						console.log('加密key已更新:', newKey)
+					}
+				}
+			} catch (error) {
+				// 请求失败，忽略，继续使用缓存中的key
+				console.log('获取加密key失败，使用缓存key:', error)
+			}
+		},
+		
+		// 检测是否为加密的二维码格式
+		isEncryptedQRCode(text) {
+			if (!text || typeof text !== 'string') {
+				return false
+			}
+			try {
+				// 尝试解析为JSON
+				const parsed = JSON.parse(text)
+				// 检查是否包含 text 和 version 字段
+				if (parsed && typeof parsed === 'object' && parsed.text && parsed.version) {
+					return true
+				}
+			} catch (e) {
+				// 不是有效的JSON
+				return false
+			}
+			return false
+		},
+		
+		// 解密二维码内容
+		async decryptQRCode(encryptedText) {
+			try {
+				// 1. 解析JSON获取加密文本
+				const parsed = JSON.parse(encryptedText)
+				if (!parsed.text) {
+					return null
+				}
+				
+				// 2. 将 \u003d 还原为 =
+				const base64Text = parsed.text.replace(/\\u003d/g, '=')
+				
+				// 3. 先尝试从服务器获取最新的key
+				await this.fetchKeyFromServer()
+				
+				// 4. AES-128-ECB 解密
+				const key = CryptoJS.enc.Utf8.parse(this.encryptionKey)
+				const decrypted = CryptoJS.AES.decrypt(base64Text, key, {
+					mode: CryptoJS.mode.ECB,
+					padding: CryptoJS.pad.Pkcs7
+				})
+				
+				// 5. 转换为字符串
+				const decryptedText = decrypted.toString(CryptoJS.enc.Utf8)
+				if (!decryptedText) {
+					return null
+				}
+				
+				// 6. 解析为JSON对象
+				const data = JSON.parse(decryptedText)
+				return data
+			} catch (error) {
+				console.error('解密失败:', error)
+				return null
+			}
+		},
+		
+		// 格式化解密后的数据为人类可读的中文
+		formatDecryptedData(data) {
+			if (!data || typeof data !== 'object') {
+				return []
+			}
+			
+			const formatted = []
+			
+			// 姓名
+			if (data.n) {
+				formatted.push({
+					label: '姓名',
+					value: data.n,
+					description: '水印中的姓名信息'
+				})
+			}
+			
+			// 时间戳
+			if (data.ot) {
+				const date = new Date(data.ot * 1000)
+				const dateStr = date.toLocaleString('zh-CN', {
+					year: 'numeric',
+					month: '2-digit',
+					day: '2-digit',
+					hour: '2-digit',
+					minute: '2-digit',
+					second: '2-digit',
+					hour12: false
+				})
+				formatted.push({
+					label: '时间',
+					value: dateStr,
+					description: '水印生成的时间（Unix时间戳：' + data.ot + '）'
+				})
+			}
+			
+			// 员工ID
+			if (data.s) {
+				formatted.push({
+					label: '员工ID',
+					value: data.s.toString(),
+					description: '员工唯一标识符'
+				})
+			}
+			
+			// 来源
+			if (data.or !== undefined) {
+				const originMap = {
+					1: '未知来源',
+					2: '水印工具生成'
+				}
+				formatted.push({
+					label: '来源',
+					value: originMap[data.or] || '未知（' + data.or + '）',
+					description: '数据来源标识'
+				})
+			}
+			
+			// 地理位置信息
+			if (data.g) {
+				const geo = data.g
+				if (geo.la && geo.lo) {
+					formatted.push({
+						label: '地理位置',
+						value: `纬度：${geo.la}，经度：${geo.lo}`,
+						description: `坐标系统：${geo.c || '未知'}${geo.n ? '，位置名称：' + geo.n : ''}`
+					})
+				} else if (geo.c) {
+					formatted.push({
+						label: '坐标系统',
+						value: geo.c,
+						description: '地理位置坐标系统'
+					})
+				}
+			}
+			
+			return formatted
+		},
+		
 		handleScan() {
-			// 调用扫码API
+			// 调用扫码功能
+			// 允许从相机和相册扫码，启用自动放大，只扫描二维码
 			uni.scanCode({
-				// 不限制只从相机扫码，允许从相册选择
-				onlyFromCamera: false,
-				// 只扫描二维码
-				scanType: ['qrCode'],
-				// 启用自动放大（仅支持 App-Android 3.5.4+）
-				autoZoom: true,
-				success: (res) => {
-					console.log('扫码成功:', res)
-					// 扫码成功后处理结果
-					this.handleScanResult(res.result)
+				scanType: ['qrCode'], // 只扫描二维码
+				autoZoom: true, // 启用自动放大（仅App-Android支持）
+				success: async (res) => {
+					console.log('扫码成功', res)
+					const scanText = res.result || ''
+					
+					// 先尝试检测是否为加密的二维码
+					const isEncrypted = this.isEncryptedQRCode(scanText)
+					let decryptedData = null
+					
+					if (isEncrypted) {
+						// 尝试解密
+						uni.showLoading({
+							title: '解析中...'
+						})
+						decryptedData = await this.decryptQRCode(scanText)
+						uni.hideLoading()
+						
+						if (decryptedData) {
+							// 解密成功
+							this.scanResult = {
+								result: scanText,
+								scanType: res.scanType || '二维码',
+								decrypted: decryptedData,
+								isEncrypted: true
+							}
+						} else {
+							// 解密失败，显示原始内容
+							this.scanResult = {
+								result: scanText,
+								scanType: res.scanType || '二维码',
+								decrypted: null,
+								isEncrypted: true
+							}
+							uni.showToast({
+								title: '解密失败，显示原始内容',
+								icon: 'none',
+								duration: 2000
+							})
+						}
+					} else {
+						// 不是加密格式，显示原始内容
+						this.scanResult = {
+							result: scanText,
+							scanType: res.scanType || '未知',
+							decrypted: null,
+							isEncrypted: false
+						}
+					}
+					
+					// 显示弹窗
+					this.showScanModal = true
 				},
 				fail: (err) => {
-					console.error('扫码失败:', err)
-					// 用户取消或识别失败
-					if (err.errMsg && err.errMsg.indexOf('cancel') === -1) {
+					console.log('扫码失败', err)
+					// 用户取消扫码不显示错误提示
+					if (err.errMsg && !err.errMsg.includes('cancel')) {
 						uni.showToast({
-							title: '扫码失败',
+							title: '扫码失败：' + (err.errMsg || '未知错误'),
 							icon: 'none',
 							duration: 2000
 						})
@@ -119,50 +421,69 @@ export default {
 				}
 			})
 		},
-		handleScanResult(result) {
-			// 判断扫码结果是否为URL
-			const isUrl = this.isValidUrl(result)
-			
-			if (isUrl) {
-				// 如果是URL，显示确认对话框询问是否打开
-				uni.showModal({
-					title: '扫码结果',
-					content: `检测到网址：\n${result}\n\n是否打开此链接？`,
-					confirmText: '打开',
-					cancelText: '取消',
-					success: (modalRes) => {
-						if (modalRes.confirm) {
-							// 用户点击确认，打开链接
-							this.openExternalUrl(result)
-						}
-					}
-				})
-			} else {
-				// 如果不是URL，直接显示扫码内容
-				uni.showModal({
-					title: '扫码结果',
-					content: result,
-					showCancel: false,
-					confirmText: '确定'
-				})
-			}
+		// 关闭扫码结果弹窗
+		closeScanModal() {
+			this.showScanModal = false
+			// 清空扫码结果
+			setTimeout(() => {
+				this.scanResult = {
+					result: '',
+					scanType: '',
+					decrypted: null,
+					isEncrypted: false
+				}
+			}, 300)
 		},
-		isValidUrl(string) {
-			// 判断字符串是否为有效的URL
-			try {
-				// 检查是否以http://或https://开头
-				if (string.startsWith('http://') || string.startsWith('https://')) {
-					new URL(string)
-					return true
-				}
-				// 检查是否为常见的URL格式（不带协议）
-				if (/^(www\.)?[\w-]+(\.[\w-]+)+/.test(string)) {
-					return true
-				}
-				return false
-			} catch (e) {
+		// 检测是否为URL
+		isUrl(str) {
+			if (!str || typeof str !== 'string') {
 				return false
 			}
+			// URL正则表达式，支持 http://、https://、ftp:// 等协议
+			const urlPattern = /^(https?|ftp):\/\/[-A-Za-z0-9+&@#/%?=~_|!:,.;]+[-A-Za-z0-9+&@#/%=~_|]$/i
+			return urlPattern.test(str.trim())
+		},
+		// 打开扫码得到的URL
+		openScanUrl() {
+			const url = this.scanResult.result
+			if (!this.isUrl(url)) {
+				uni.showToast({
+					title: '无效的网址',
+					icon: 'none',
+					duration: 2000
+				})
+				return
+			}
+			
+			// 先关闭弹窗
+			this.closeScanModal()
+			
+			// 延迟一下再打开，让弹窗关闭动画完成
+			setTimeout(() => {
+				this.openExternalUrl(url)
+			}, 300)
+		},
+		// 复制扫码结果
+		copyScanResult() {
+			const content = this.scanResult.result
+			uni.setClipboardData({
+				data: content,
+				success: () => {
+					uni.showToast({
+						title: '已复制到剪贴板',
+						icon: 'success',
+						duration: 2000
+					})
+					this.closeScanModal()
+				},
+				fail: () => {
+					uni.showToast({
+						title: '复制失败',
+						icon: 'none',
+						duration: 2000
+					})
+				}
+			})
 		},
 		handleSettings() {
 			uni.showToast({
@@ -564,5 +885,233 @@ export default {
 .nav-item.active .nav-label {
 	color: #667eea;
 	font-weight: 600;
+}
+
+/* 扫码结果弹窗 */
+.scan-modal {
+	position: fixed;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	background: rgba(0, 0, 0, 0.5);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	z-index: 9999;
+	animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+	from {
+		opacity: 0;
+	}
+	to {
+		opacity: 1;
+	}
+}
+
+.scan-modal-content {
+	width: 85%;
+	max-width: 600rpx;
+	background: white;
+	border-radius: 32rpx;
+	overflow: hidden;
+	animation: slideUp 0.3s ease;
+	box-shadow: 0 20rpx 60rpx rgba(0, 0, 0, 0.3);
+}
+
+@keyframes slideUp {
+	from {
+		transform: translateY(100rpx);
+		opacity: 0;
+	}
+	to {
+		transform: translateY(0);
+		opacity: 1;
+	}
+}
+
+.scan-modal-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 40rpx;
+	border-bottom: 1rpx solid #f0f0f0;
+	background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.scan-modal-title {
+	font-size: 36rpx;
+	font-weight: 700;
+	color: white;
+}
+
+.scan-modal-close {
+	width: 60rpx;
+	height: 60rpx;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	font-size: 40rpx;
+	color: white;
+	border-radius: 50%;
+	background: rgba(255, 255, 255, 0.2);
+	transition: all 0.3s ease;
+}
+
+.scan-modal-close:active {
+	background: rgba(255, 255, 255, 0.3);
+	transform: scale(0.9);
+}
+
+.scan-modal-body {
+	padding: 40rpx;
+	max-height: 60vh;
+	overflow-y: auto;
+}
+
+.scan-result-type,
+.scan-result-content,
+.scan-result-url {
+	margin-bottom: 30rpx;
+	word-break: break-all;
+}
+
+.scan-result-url {
+	padding: 20rpx;
+	background: #f8f9fa;
+	border-radius: 16rpx;
+	border-left: 4rpx solid #667eea;
+}
+
+.scan-label {
+	font-size: 28rpx;
+	color: #666;
+	margin-bottom: 12rpx;
+	display: block;
+	font-weight: 600;
+}
+
+.scan-value {
+	font-size: 32rpx;
+	color: #333;
+	line-height: 1.6;
+	display: block;
+	word-break: break-all;
+}
+
+.scan-content {
+	padding: 20rpx;
+	background: #f8f9fa;
+	border-radius: 16rpx;
+	min-height: 80rpx;
+}
+
+.scan-url {
+	color: #667eea;
+	text-decoration: underline;
+}
+
+.scan-modal-footer {
+	display: flex;
+	border-top: 1rpx solid #f0f0f0;
+	padding: 0;
+}
+
+.scan-modal-btn {
+	flex: 1;
+	height: 100rpx;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	font-size: 32rpx;
+	font-weight: 600;
+	transition: all 0.3s ease;
+	border-right: 1rpx solid #f0f0f0;
+}
+
+.scan-modal-btn:last-child {
+	border-right: none;
+}
+
+.cancel-btn {
+	color: #666;
+	background: white;
+}
+
+.cancel-btn:active {
+	background: #f5f5f5;
+}
+
+.confirm-btn,
+.copy-btn {
+	color: white;
+	background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.confirm-btn:active,
+.copy-btn:active {
+	opacity: 0.8;
+}
+
+/* 解密后的内容样式 */
+.decrypted-content {
+	margin-top: 20rpx;
+}
+
+.decrypted-header {
+	margin-bottom: 30rpx;
+	padding-bottom: 20rpx;
+	border-bottom: 2rpx solid #e0e0e0;
+}
+
+.decrypted-title {
+	font-size: 32rpx;
+	font-weight: 700;
+	color: #667eea;
+}
+
+.decrypted-item {
+	margin-bottom: 30rpx;
+	padding: 24rpx;
+	background: #f8f9fa;
+	border-radius: 16rpx;
+	border-left: 4rpx solid #667eea;
+}
+
+.decrypted-item-label {
+	font-size: 28rpx;
+	font-weight: 600;
+	color: #333;
+	margin-bottom: 12rpx;
+}
+
+.decrypted-item-value {
+	font-size: 32rpx;
+	color: #667eea;
+	font-weight: 500;
+	margin-bottom: 8rpx;
+	word-break: break-all;
+}
+
+.decrypted-item-desc {
+	font-size: 24rpx;
+	color: #999;
+	line-height: 1.5;
+	margin-top: 8rpx;
+}
+
+.decrypt-failed {
+	padding: 30rpx;
+	background: #fff3cd;
+	border-radius: 16rpx;
+	border-left: 4rpx solid #ffc107;
+	margin-bottom: 20rpx;
+}
+
+.decrypt-failed-text {
+	font-size: 28rpx;
+	color: #856404;
 }
 </style>

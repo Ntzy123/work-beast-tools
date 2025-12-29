@@ -69,16 +69,6 @@
 			<view class="result-section" v-if="resultImage">
 				<view class="section-title">生成结果</view>
 				<image :src="resultImage" mode="aspectFit" class="result-img" @click="previewImage(resultImage)"></image>
-				<view class="result-actions">
-					<button class="save-btn" @click="saveImage">保存图片</button>
-				</view>
-				
-				<!-- 保存状态显示（手机端可见） -->
-				<view class="save-status-box" v-if="showSaveStatus">
-					<view class="status-title">📋 保存状态</view>
-					<text class="status-text">{{ saveStatus }}</text>
-					<button class="close-status-btn" @click="showSaveStatus = false">关闭</button>
-				</view>
 			</view>
 			</view>
 
@@ -110,15 +100,15 @@
 				@mousedown="handleMouseDown"
 				@mousemove="handleMouseMove"
 				@mouseup="handleMouseUp">
-					<image 
-						:src="previewImageUrl" 
-						mode="aspectFit"
-						:style="{
-							transform: `translate(${translateX}px, ${translateY}px) scale(${scale})`,
-							transition: isDragging || isScaling ? 'none' : 'transform 0.3s ease'
-						}"
-						class="preview-image"
-					></image>
+				<image 
+					:src="previewImageUrl" 
+					mode="aspectFit"
+					:style="{
+						transform: `translate(${translateX}px, ${translateY}px) scale(${scale})`,
+						transition: (isDragging || isScaling) && !isSpringBack ? 'none' : 'transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)'
+					}"
+					class="preview-image"
+				></image>
 				</view>
 				<view class="close-btn" @click="closePreview">✕</view>
 			</view>
@@ -161,26 +151,35 @@ export default {
 			secondRange,
 			canvasWidth: 750,
 			canvasHeight: 1334,
-		// 图片预览相关
-		showPreview: false,
-		previewImageUrl: '',
-		scale: 1,
-		initialScale: 1, // 初始缩放比例（撑满屏幕）
-		translateX: 0,
-		translateY: 0,
-		isDragging: false,
-		isScaling: false,
-		startX: 0,
-		startY: 0,
-		lastTranslateX: 0,
-		lastTranslateY: 0,
-		startDistance: 0,
-		lastScale: 1,
-		nativeWheelHandler: null,  // 存储原生 wheel 事件处理器的引用
-		// 保存状态追踪
-		saveStatus: '',
-		showSaveStatus: false
-		}
+	// 图片预览相关
+	showPreview: false,
+	previewImageUrl: '',
+	scale: 1,
+	initialScale: 1, // 初始缩放比例（撑满屏幕）
+	translateX: 0,
+	translateY: 0,
+	isDragging: false,
+	isScaling: false,
+	startX: 0,
+	startY: 0,
+	lastTranslateX: 0,
+	lastTranslateY: 0,
+	startDistance: 0,
+	lastScale: 1,
+	nativeWheelHandler: null,  // 存储原生 wheel 事件处理器的引用
+	// 图片和容器尺寸信息
+	imageWidth: 0,
+	imageHeight: 0,
+	containerWidth: 0,
+	containerHeight: 0,
+	// 双指缩放中心点
+	pinchCenterX: 0,
+	pinchCenterY: 0,
+	// 回弹动画
+	isSpringBack: false,
+	// 加密key（从缓存读取或使用默认值）
+	encryptionKey: 'e373d090928170eb'
+	}
 	},
 	computed: {
 		canGenerate() {
@@ -194,9 +193,55 @@ export default {
 		}
 	},
 	onLoad() {
-		// no-op
+		// 从缓存中读取加密key，如果没有则使用默认值
+		const cachedKey = uni.getStorageSync('watermark_encryption_key')
+		if (cachedKey) {
+			this.encryptionKey = cachedKey
+		} else {
+			// 首次使用，保存默认key到缓存
+			uni.setStorageSync('watermark_encryption_key', this.encryptionKey)
+		}
 	},
 	methods: {
+		// 从服务器获取最新的加密key
+		async fetchKeyFromServer() {
+			try {
+				// 动态导入配置文件
+				const apiConfig = await import('@/config/api.config.json')
+				const config = apiConfig.default.watermarkKey
+				
+				// 发起HTTP请求
+				const response = await new Promise((resolve, reject) => {
+					uni.request({
+						url: config.url,
+						method: config.method,
+						header: config.headers,
+						success: (res) => {
+							resolve(res)
+						},
+						fail: (err) => {
+							reject(err)
+						}
+					})
+				})
+				
+				// 检查响应是否成功
+				if (response.statusCode === 200 && response.data) {
+					const data = response.data
+					if (data.code === 0 && data.result && data.result.key) {
+						// 更新key到缓存
+						const newKey = data.result.key
+						this.encryptionKey = newKey
+						uni.setStorageSync('watermark_encryption_key', newKey)
+						console.log('加密key已更新:', newKey)
+					}
+				}
+			} catch (error) {
+				// 请求失败，忽略，继续使用缓存中的key
+				console.log('获取加密key失败，使用缓存key:', error)
+			}
+		},
+		
 		// 在矩形范围内随机生成经纬度
 		generateRandomCoordinates() {
 			// 定义矩形的两个对角点
@@ -266,15 +311,15 @@ export default {
 				s: staffId
 			}
 			
-			// 5. 序列化为紧凑JSON（无空格）
-			const plainText = JSON.stringify(data, null, 0)
-			
-			// 6. AES-128-ECB 加密
-			const key = CryptoJS.enc.Utf8.parse('e373d090928170eb')
-			const encrypted = CryptoJS.AES.encrypt(plainText, key, {
-				mode: CryptoJS.mode.ECB,
-				padding: CryptoJS.pad.Pkcs7
-			})
+		// 5. 序列化为紧凑JSON（无空格）
+		const plainText = JSON.stringify(data, null, 0)
+		
+		// 6. AES-128-ECB 加密（使用缓存的key）
+		const key = CryptoJS.enc.Utf8.parse(this.encryptionKey)
+		const encrypted = CryptoJS.AES.encrypt(plainText, key, {
+			mode: CryptoJS.mode.ECB,
+			padding: CryptoJS.pad.Pkcs7
+		})
 			
 			// 7. Base64 编码
 			const encryptedText = encrypted.toString()
@@ -347,16 +392,19 @@ export default {
 				return
 			}
 			
-			this.generateWatermark()
-		},
-		generateWatermark() {
-			uni.showLoading({
-				title: '生成中...'
-			})
+		this.generateWatermark()
+	},
+	async generateWatermark() {
+		uni.showLoading({
+			title: '生成中...'
+		})
 
-			// 使用canvas绘制水印
-			this.drawWatermark()
-		},
+		// 先尝试从服务器获取最新的加密key
+		await this.fetchKeyFromServer()
+
+		// 使用canvas绘制水印
+		this.drawWatermark()
+	},
 		drawWatermark() {
 			// 获取图片信息
 			uni.getImageInfo({
@@ -448,9 +496,9 @@ export default {
 					
 					this.drawRoundedRect(ctx, locBoxX, locBoxY, locBoxWidth, locBoxHeight, borderRadius, bgColor)
 					
-				// 绘制定位图标（原生像素加载PNG，保留透明通道）
-				const iconX = locBoxX + 18 // 距离定位框左边缘 18px
-				const iconY = locBoxY + 19 // 距离定位框顶部 19px（可根据实际PNG尺寸调整）
+			// 绘制定位图标（原生像素加载PNG，保留透明通道）
+			const iconX = locBoxX + 20 // 距离定位框左边缘 20px（往右2px）
+			const iconY = locBoxY + 17 // 距离定位框顶部 17px（往上2px）
 				
 				// 以原生像素加载PNG图标，不缩放
 				ctx.drawImage(
@@ -677,18 +725,14 @@ export default {
 					const base64WithExif = this.addExifToImage(tempFilePath)
 					this.resultImage = base64WithExif
 					uni.hideLoading()
-					uni.showToast({
-						title: '生成成功',
-						icon: 'success'
-					})
+					// 生成成功后自动保存
+					this.saveImage()
 				} catch (err) {
 					// 降级：使用原图
 					this.resultImage = tempFilePath
 					uni.hideLoading()
-					uni.showToast({
-						title: '生成成功',
-						icon: 'success'
-					})
+					// 生成成功后自动保存
+					this.saveImage()
 				}
 			} else {
 				// Blob URL，需要转换为Base64
@@ -702,17 +746,13 @@ export default {
 								const base64WithExif = this.addExifToImage(base64)
 								this.resultImage = base64WithExif
 								uni.hideLoading()
-								uni.showToast({
-									title: '生成成功',
-									icon: 'success'
-								})
+								// 生成成功后自动保存
+								this.saveImage()
 							} catch (err) {
 								this.resultImage = tempFilePath
 								uni.hideLoading()
-								uni.showToast({
-									title: '生成成功',
-									icon: 'success'
-								})
+								// 生成成功后自动保存
+								this.saveImage()
 							}
 						}
 						reader.readAsDataURL(blob)
@@ -720,10 +760,8 @@ export default {
 					.catch(err => {
 						this.resultImage = tempFilePath
 						uni.hideLoading()
-						uni.showToast({
-							title: '生成成功',
-							icon: 'success'
-						})
+						// 生成成功后自动保存
+						this.saveImage()
 					})
 			}
 			// #endif
@@ -751,76 +789,69 @@ export default {
 							}
 							const byteArray = new Uint8Array(byteNumbers)
 							
-							entry.filesystem.root.getFile(newFileName, { create: true }, (newEntry) => {
-								newEntry.createWriter((writer) => {
-									writer.onwrite = () => {
-										this.resultImage = newEntry.toLocalURL()
-										uni.hideLoading()
-										uni.showToast({
-											title: '生成成功',
-											icon: 'success'
-										})
-									}
-									writer.onerror = (err) => {
-										// 降级：使用原图
-										this.resultImage = tempFilePath
-										uni.hideLoading()
-										uni.showToast({
-											title: '生成成功',
-											icon: 'success'
-										})
-									}
-									writer.write(byteArray.buffer)
-								})
-							})
-						} catch (err) {
-							// 降级：使用原图
-							this.resultImage = tempFilePath
-							uni.hideLoading()
-							uni.showToast({
-								title: '生成成功',
-								icon: 'success'
-							})
-						}
+					entry.filesystem.root.getFile(newFileName, { create: true }, (newEntry) => {
+						newEntry.createWriter((writer) => {
+							writer.onwrite = () => {
+								this.resultImage = newEntry.toLocalURL()
+								uni.hideLoading()
+								// 生成成功后自动保存
+								this.saveImage()
+							}
+							writer.onerror = (err) => {
+								// 降级：使用原图
+								this.resultImage = tempFilePath
+								uni.hideLoading()
+								// 生成成功后自动保存
+								this.saveImage()
+							}
+							writer.write(byteArray.buffer)
+						})
+					})
+				} catch (err) {
+					// 降级：使用原图
+					this.resultImage = tempFilePath
+					uni.hideLoading()
+					// 生成成功后自动保存
+					this.saveImage()
+				}
 					}
-					reader.readAsDataURL(file)
-				})
-			}, (err) => {
-				// 降级：使用原图
-				this.resultImage = tempFilePath
-				uni.hideLoading()
-				uni.showToast({
-					title: '生成成功',
-					icon: 'success'
-				})
+				reader.readAsDataURL(file)
 			})
-			// #endif
-		},
+		}, (err) => {
+			// 降级：使用原图
+			this.resultImage = tempFilePath
+			uni.hideLoading()
+			// 生成成功后自动保存
+			this.saveImage()
+		})
+		// #endif
+	},
 		
 		saveImage() {
 			if (!this.resultImage) return
 			
-			// #ifdef H5
-			// H5 环境：使用浏览器下载
-			try {
-				const fileName = this.generateTimestampFileName()
-				const link = document.createElement('a')
-				link.href = this.resultImage
-				link.download = fileName
-				document.body.appendChild(link)
-				link.click()
-				document.body.removeChild(link)
-				uni.showToast({
-					title: '开始下载',
-					icon: 'success'
-				})
-			} catch (e) {
-				uni.showToast({
-					title: '下载失败',
-					icon: 'none'
-				})
-			}
-			// #endif
+		// #ifdef H5
+		// H5 环境：使用浏览器下载
+		try {
+			const fileName = this.generateTimestampFileName()
+			const link = document.createElement('a')
+			link.href = this.resultImage
+			link.download = fileName
+			document.body.appendChild(link)
+			link.click()
+			document.body.removeChild(link)
+			uni.showToast({
+				title: '保存成功',
+				icon: 'success'
+			})
+		} catch (e) {
+			uni.showToast({
+				title: `下载失败: ${e.message || '未知错误'}`,
+				icon: 'none',
+				duration: 3000
+			})
+		}
+		// #endif
 
 			// #ifndef H5
 			// APP环境：先检查"所有文件访问权限"，然后保存到 /lebang/waterimages/
@@ -922,10 +953,6 @@ export default {
 		// #ifndef H5
 		// APP端保存到自定义路径
 		saveImageToCustomPath() {
-			this.saveStatus = '📱 开始保存...\n'
-			this.saveStatus += `源文件: ${this.resultImage}\n`
-			this.showSaveStatus = true
-			
 			uni.showLoading({
 				title: '保存中...',
 				mask: true
@@ -934,9 +961,8 @@ export default {
 			// 超时保护
 			const timeoutId = setTimeout(() => {
 				uni.hideLoading()
-				this.saveStatus += '\n❌ 保存超时（10秒）'
 				uni.showToast({
-					title: '保存超时，请查看状态',
+					title: '保存超时',
 					icon: 'none'
 				})
 			}, 10000)
@@ -944,120 +970,82 @@ export default {
 			const fileName = this.generateTimestampFileName()
 			const targetDir = '/storage/emulated/0/lebang/waterimages/'
 			
-			this.saveStatus += `\n📁 目标目录: ${targetDir}`
-			this.saveStatus += `\n📄 文件名: ${fileName}`
-			this.saveStatus += `\n\n🔄 检查目录...`
-			
 			// 先确保目录存在
 			plus.io.resolveLocalFileSystemURL(targetDir, 
 				(dirEntry) => {
-					this.saveStatus += '\n✅ 目录已存在'
-					this.saveStatus += '\n\n🔄 开始复制文件...'
 					this.copyFileToTarget(timeoutId, dirEntry, fileName)
 				},
 				(err) => {
-					this.saveStatus += '\n⚠️ 目录不存在，开始创建...'
-					this.saveStatus += `\n   错误码: ${err.code || 'unknown'}`
-					
 					// 目录不存在，创建它
 					plus.io.resolveLocalFileSystemURL('/storage/emulated/0/', (rootEntry) => {
-						this.saveStatus += '\n✅ 根目录访问成功'
-						
 						rootEntry.getDirectory('lebang', { create: true }, (lebangDir) => {
-							this.saveStatus += '\n✅ lebang 目录创建/访问成功'
-							
 							lebangDir.getDirectory('waterimages', { create: true }, (waterDir) => {
-								this.saveStatus += '\n✅ waterimages 目录创建/访问成功'
-								this.saveStatus += '\n\n🔄 开始复制文件...'
 								this.copyFileToTarget(timeoutId, waterDir, fileName)
 							}, (createErr) => {
 								clearTimeout(timeoutId)
 								uni.hideLoading()
-								this.saveStatus += `\n\n❌ 创建waterimages失败`
-								this.saveStatus += `\n   错误码: ${createErr.code}`
-								this.saveStatus += `\n   错误信息: ${createErr.message || '未知'}`
 								uni.showToast({ title: '创建目录失败', icon: 'none' })
 							})
-						}, (createErr) => {
-							clearTimeout(timeoutId)
-							uni.hideLoading()
-							this.saveStatus += `\n\n❌ 创建lebang失败`
-							this.saveStatus += `\n   错误码: ${createErr.code}`
-							this.saveStatus += `\n   错误信息: ${createErr.message || '未知'}`
-							uni.showToast({ title: '创建目录失败', icon: 'none' })
-						})
-					}, (rootErr) => {
+					}, (createErr) => {
 						clearTimeout(timeoutId)
 						uni.hideLoading()
-						this.saveStatus += `\n\n❌ 访问根目录失败`
-						this.saveStatus += `\n   错误码: ${rootErr.code}`
-						this.saveStatus += `\n   错误信息: ${rootErr.message || '未知'}`
-						uni.showToast({ title: '访问根目录失败', icon: 'none' })
+						uni.showToast({ 
+							title: `创建目录失败: ${createErr.message || createErr.code || '未知错误'}`, 
+							icon: 'none',
+							duration: 3000
+						})
 					})
+				}, (rootErr) => {
+					clearTimeout(timeoutId)
+					uni.hideLoading()
+					uni.showToast({ 
+						title: `访问根目录失败: ${rootErr.message || rootErr.code || '未知错误'}`, 
+						icon: 'none',
+						duration: 3000
+					})
+				})
 				}
 			)
 		},
 		
 		// 复制文件到目标目录（自动处理重名）
 		copyFileToTarget(timeoutId, targetDirEntry, fileName) {
-			this.saveStatus += '\n\n🔄 访问源文件...'
-			
 			plus.io.resolveLocalFileSystemURL(this.resultImage, (sourceEntry) => {
-				this.saveStatus += '\n✅ 源文件访问成功'
-				this.saveStatus += '\n\n🔄 检查文件名是否重复...'
-				
 				// 递归检查文件名，如果重复则递增最后一位数字
 				this.findAvailableFileName(targetDirEntry, fileName, (finalFileName) => {
-					if (finalFileName !== fileName) {
-						this.saveStatus += `\n⚠️ 文件名已存在，已更名为: ${finalFileName}`
-					} else {
-						this.saveStatus += '\n✅ 文件名可用'
-					}
-					
-					this.saveStatus += '\n\n🔄 正在复制...'
-					
 					sourceEntry.copyTo(targetDirEntry, finalFileName,
 						(newEntry) => {
 							clearTimeout(timeoutId)
 							uni.hideLoading()
-							this.saveStatus += '\n\n✅ 文件保存成功！'
-							this.saveStatus += `\n📍 完整路径:\n   ${newEntry.fullPath}`
 							
-							// 🔑 关键：刷新媒体库，让其他APP能读取到
-							this.saveStatus += '\n\n🔄 刷新媒体库...'
+							// 刷新媒体库，让其他APP能读取到
 							this.scanMediaFile(newEntry.fullPath, () => {
-								this.saveStatus += '\n✅ 媒体库已更新'
-								this.saveStatus += '\n\n✨ 其他APP现在可以读取此文件了！'
 								uni.showToast({
 									title: '保存成功',
 									icon: 'success'
 								})
 							})
 						},
-						(copyErr) => {
-							clearTimeout(timeoutId)
-							uni.hideLoading()
-							this.saveStatus += `\n\n❌ 文件复制失败`
-							this.saveStatus += `\n   错误码: ${copyErr.code}`
-							this.saveStatus += `\n   错误信息: ${copyErr.message || '未知'}`
-							uni.showToast({
-								title: '复制失败',
-								icon: 'none'
-							})
-						}
-					)
-				})
-			}, (sourceErr) => {
-				clearTimeout(timeoutId)
-				uni.hideLoading()
-				this.saveStatus += `\n\n❌ 访问源文件失败`
-				this.saveStatus += `\n   错误码: ${sourceErr.code}`
-				this.saveStatus += `\n   错误信息: ${sourceErr.message || '未知'}`
-				uni.showToast({
-					title: '访问源文件失败',
-					icon: 'none'
-				})
+					(copyErr) => {
+						clearTimeout(timeoutId)
+						uni.hideLoading()
+						uni.showToast({
+							title: `复制失败: ${copyErr.message || copyErr.code || '未知错误'}`,
+							icon: 'none',
+							duration: 3000
+						})
+					}
+				)
 			})
+		}, (sourceErr) => {
+			clearTimeout(timeoutId)
+			uni.hideLoading()
+			uni.showToast({
+				title: `访问源文件失败: ${sourceErr.message || sourceErr.code || '未知错误'}`,
+				icon: 'none',
+				duration: 3000
+			})
+		})
 		},
 		
 		// 查找可用的文件名（处理重名）
@@ -1165,34 +1153,34 @@ export default {
 		})
 		// #endif
 		
-		// 获取图片信息，计算初始缩放比例（让图片撑满屏幕）
-		uni.getImageInfo({
-			src: url,
-			success: (res) => {
-				const imgWidth = res.width
-				const imgHeight = res.height
-				const imgRatio = imgWidth / imgHeight
-				
-				// 获取屏幕尺寸
-				const systemInfo = uni.getSystemInfoSync()
-				const screenWidth = systemInfo.windowWidth
-				const screenHeight = systemInfo.windowHeight
-				const screenRatio = screenWidth / screenHeight
-				
-				// 计算初始缩放比例，让图片撑满屏幕（宽度或高度优先）
-				// 如果图片更宽，则按宽度撑满；如果图片更高，则按高度撑满
-				if (imgRatio > screenRatio) {
-					// 图片更宽，按宽度撑满
-					this.initialScale = 1
-				} else {
-					// 图片更高或比例相同，按高度撑满
-					this.initialScale = 1
-				}
-				
-				this.scale = this.initialScale
-				this.lastScale = this.initialScale
+	// 获取图片信息，计算初始缩放比例（让图片撑满屏幕）
+	uni.getImageInfo({
+		src: url,
+		success: (res) => {
+			this.imageWidth = res.width
+			this.imageHeight = res.height
+			const imgRatio = this.imageWidth / this.imageHeight
+			
+			// 获取屏幕尺寸
+			const systemInfo = uni.getSystemInfoSync()
+			this.containerWidth = systemInfo.windowWidth
+			this.containerHeight = systemInfo.windowHeight
+			const screenRatio = this.containerWidth / this.containerHeight
+			
+			// 计算初始缩放比例，让图片撑满屏幕（宽度或高度优先）
+			// 如果图片更宽，则按宽度撑满；如果图片更高，则按高度撑满
+			if (imgRatio > screenRatio) {
+				// 图片更宽，按宽度撑满
+				this.initialScale = 1
+			} else {
+				// 图片更高或比例相同，按高度撑满
+				this.initialScale = 1
 			}
-		})
+			
+			this.scale = this.initialScale
+			this.lastScale = this.initialScale
+		}
+	})
 	},
 	closePreview() {
 		// #ifdef H5
@@ -1219,64 +1207,86 @@ export default {
 			this.lastTranslateY = 0
 		},
 		
-		// 触摸开始
-		handleTouchStart(e) {
-			if (e.touches.length === 1) {
-				// 单指拖动
-				this.isDragging = true
-				this.startX = e.touches[0].clientX
-				this.startY = e.touches[0].clientY
-			} else if (e.touches.length === 2) {
-				// 双指缩放
-				this.isScaling = true
-				this.isDragging = false
-				const touch1 = e.touches[0]
-				const touch2 = e.touches[1]
-				this.startDistance = this.getDistance(touch1, touch2)
-				this.lastScale = this.scale
-			}
-		},
+	// 触摸开始
+	handleTouchStart(e) {
+		if (e.touches.length === 1) {
+			// 单指拖动
+			this.isDragging = true
+			this.startX = e.touches[0].clientX
+			this.startY = e.touches[0].clientY
+		} else if (e.touches.length === 2) {
+			// 双指缩放
+			this.isScaling = true
+			this.isDragging = false
+			const touch1 = e.touches[0]
+			const touch2 = e.touches[1]
+			this.startDistance = this.getDistance(touch1, touch2)
+			this.lastScale = this.scale
+			
+			// 计算双指中心点（相对于容器）
+			this.pinchCenterX = (touch1.clientX + touch2.clientX) / 2
+			this.pinchCenterY = (touch1.clientY + touch2.clientY) / 2
+		}
+	},
 		
-		// 触摸移动
-		handleTouchMove(e) {
-			e.preventDefault()
-			if (e.touches.length === 1 && this.isDragging) {
-				// 单指拖动
-				const deltaX = e.touches[0].clientX - this.startX
-				const deltaY = e.touches[0].clientY - this.startY
-				
-				const newX = this.lastTranslateX + deltaX
-				const newY = this.lastTranslateY + deltaY
-				
-				// 限制边界
-				const limited = this.limitBoundary(newX, newY)
-				this.translateX = limited.x
-				this.translateY = limited.y
-			} else if (e.touches.length === 2) {
-			// 双指缩放（优化速度，更平滑）
+	// 触摸移动
+	handleTouchMove(e) {
+		e.preventDefault()
+		if (e.touches.length === 1 && this.isDragging) {
+			// 单指拖动
+			const deltaX = e.touches[0].clientX - this.startX
+			const deltaY = e.touches[0].clientY - this.startY
+			
+			const newX = this.lastTranslateX + deltaX
+			const newY = this.lastTranslateY + deltaY
+			
+			// 限制边界
+			const limited = this.limitBoundary(newX, newY)
+			this.translateX = limited.x
+			this.translateY = limited.y
+		} else if (e.touches.length === 2 && this.isScaling) {
+			// 双指缩放（以手指中心点为缩放中心）
 			const touch1 = e.touches[0]
 			const touch2 = e.touches[1]
 			const distance = this.getDistance(touch1, touch2)
 			const scaleChange = distance / this.startDistance
 			
-			// 应用缩放变化，限制范围为 initialScale（撑满） 到 5 倍
+			// 计算新缩放值，限制范围为 initialScale（撑满） 到 5 倍
 			let newScale = this.lastScale * scaleChange
 			newScale = Math.max(this.initialScale, Math.min(5, newScale))
 			
+			// 计算缩放中心相对于容器中心的偏移
+			const centerOffsetX = this.pinchCenterX - this.containerWidth / 2
+			const centerOffsetY = this.pinchCenterY - this.containerHeight / 2
+			
+			// 计算缩放比例变化
+			const scaleRatio = newScale / this.lastScale
+			
+			// 调整位移，使缩放以手指中心点为中心
+			// 公式：新位移 = (旧位移 - 中心偏移) * 缩放比例 + 中心偏移
+			const newTranslateX = (this.lastTranslateX - centerOffsetX) * scaleRatio + centerOffsetX
+			const newTranslateY = (this.lastTranslateY - centerOffsetY) * scaleRatio + centerOffsetY
+			
 			this.scale = newScale
-			}
-		},
+			this.translateX = newTranslateX
+			this.translateY = newTranslateY
+		}
+	},
 		
-		// 触摸结束
-		handleTouchEnd(e) {
-			if (e.touches.length === 0) {
-				this.isDragging = false
-				this.isScaling = false
-				this.lastTranslateX = this.translateX
-				this.lastTranslateY = this.translateY
-				this.lastScale = this.scale
-			}
-		},
+	// 触摸结束
+	handleTouchEnd(e) {
+		if (e.touches.length === 0) {
+			this.isDragging = false
+			this.isScaling = false
+			
+			// 检查是否需要回弹
+			this.checkAndSpringBack()
+		} else if (e.touches.length === 1) {
+			// 从双指变为单指
+			this.isScaling = false
+			this.checkAndSpringBack()
+		}
+	},
 		
 		// 鼠标按下
 		handleMouseDown(e) {
@@ -1301,12 +1311,14 @@ export default {
 			this.translateY = limited.y
 		},
 		
-		// 鼠标松开
-		handleMouseUp(e) {
+	// 鼠标松开
+	handleMouseUp(e) {
+		if (this.isDragging) {
 			this.isDragging = false
-			this.lastTranslateX = this.translateX
-			this.lastTranslateY = this.translateY
-		},
+			// 检查是否需要回弹
+			this.checkAndSpringBack()
+		}
+	},
 		
 	// 鼠标滚轮缩放（已废弃，H5 环境使用原生事件绑定）
 	// 保留此方法以兼容其他平台（如果需要）
@@ -1316,22 +1328,152 @@ export default {
 		console.log('handleWheel 被调用（非 H5 原生绑定）')
 	},
 		
-		// 计算两点间距离
-		getDistance(touch1, touch2) {
-			const dx = touch1.clientX - touch2.clientX
-			const dy = touch1.clientY - touch2.clientY
-			return Math.sqrt(dx * dx + dy * dy)
-		},
+	// 计算两点间距离
+	getDistance(touch1, touch2) {
+		const dx = touch1.clientX - touch2.clientX
+		const dy = touch1.clientY - touch2.clientY
+		return Math.sqrt(dx * dx + dy * dy)
+	},
+	
+	// 检查并执行回弹动画
+	checkAndSpringBack() {
+		let needSpringBack = false
+		let targetScale = this.scale
+		let targetX = this.translateX
+		let targetY = this.translateY
 		
-		// 限制边界
-		limitBoundary(x, y) {
-			// 简单的边界限制，防止拖出视口
-			const maxOffset = 200 * this.scale
-			return {
-				x: Math.max(-maxOffset, Math.min(maxOffset, x)),
-				y: Math.max(-maxOffset, Math.min(maxOffset, y))
+		// 1. 检查缩放是否小于最小值
+		if (this.scale < this.initialScale) {
+			targetScale = this.initialScale
+			needSpringBack = true
+		}
+		
+		// 2. 使用目标缩放计算边界，检查位移是否超出
+		const scaledWidth = this.imageWidth * targetScale
+		const scaledHeight = this.imageHeight * targetScale
+		
+		// 水平方向检查
+		if (scaledWidth > this.containerWidth) {
+			const maxX = (scaledWidth - this.containerWidth) / 2
+			if (this.translateX > maxX) {
+				targetX = maxX
+				needSpringBack = true
+			} else if (this.translateX < -maxX) {
+				targetX = -maxX
+				needSpringBack = true
+			}
+		} else {
+			if (this.translateX !== 0) {
+				targetX = 0
+				needSpringBack = true
 			}
 		}
+		
+		// 垂直方向检查
+		if (scaledHeight > this.containerHeight) {
+			const maxY = (scaledHeight - this.containerHeight) / 2
+			if (this.translateY > maxY) {
+				targetY = maxY
+				needSpringBack = true
+			} else if (this.translateY < -maxY) {
+				targetY = -maxY
+				needSpringBack = true
+			}
+		} else {
+			if (this.translateY !== 0) {
+				targetY = 0
+				needSpringBack = true
+			}
+		}
+		
+		// 3. 如果需要回弹，执行动画
+		if (needSpringBack) {
+			this.springBack(targetScale, targetX, targetY)
+		} else {
+			// 不需要回弹，直接更新 last 值
+			this.lastScale = this.scale
+			this.lastTranslateX = this.translateX
+			this.lastTranslateY = this.translateY
+		}
+	},
+	
+	// 执行回弹动画
+	springBack(targetScale, targetX, targetY) {
+		this.isSpringBack = true
+		
+		const startScale = this.scale
+		const startX = this.translateX
+		const startY = this.translateY
+		
+		const duration = 300 // 动画时长（毫秒）
+		const startTime = Date.now()
+		
+		const animate = () => {
+			const currentTime = Date.now()
+			const elapsed = currentTime - startTime
+			const progress = Math.min(elapsed / duration, 1)
+			
+			// 使用缓动函数（easeOutCubic）
+			const easeProgress = 1 - Math.pow(1 - progress, 3)
+			
+			// 插值计算当前值
+			this.scale = startScale + (targetScale - startScale) * easeProgress
+			this.translateX = startX + (targetX - startX) * easeProgress
+			this.translateY = startY + (targetY - startY) * easeProgress
+			
+			if (progress < 1) {
+				requestAnimationFrame(animate)
+			} else {
+				// 动画结束，确保精确到达目标值
+				this.scale = targetScale
+				this.translateX = targetX
+				this.translateY = targetY
+				this.isSpringBack = false
+				
+				// 更新 last 值
+				this.lastScale = this.scale
+				this.lastTranslateX = this.translateX
+				this.lastTranslateY = this.translateY
+			}
+		}
+		
+		requestAnimationFrame(animate)
+	},
+	
+	// 限制边界（确保至少两个边固定）
+	limitBoundary(x, y) {
+		// 计算图片缩放后的实际尺寸
+		const scaledWidth = this.imageWidth * this.scale
+		const scaledHeight = this.imageHeight * this.scale
+		
+		let limitedX = x
+		let limitedY = y
+		
+		// 水平方向边界限制
+		if (scaledWidth > this.containerWidth) {
+			// 图片宽度大于容器，可以拖动，但不能完全拖出
+			const maxX = (scaledWidth - this.containerWidth) / 2
+			limitedX = Math.max(-maxX, Math.min(maxX, x))
+		} else {
+			// 图片宽度小于容器，不允许拖动，保持居中
+			limitedX = 0
+		}
+		
+		// 垂直方向边界限制
+		if (scaledHeight > this.containerHeight) {
+			// 图片高度大于容器，可以拖动，但不能完全拖出
+			const maxY = (scaledHeight - this.containerHeight) / 2
+			limitedY = Math.max(-maxY, Math.min(maxY, y))
+		} else {
+			// 图片高度小于容器，不允许拖动，保持居中
+			limitedY = 0
+		}
+		
+		return {
+			x: limitedX,
+			y: limitedY
+		}
+	}
 	}
 }
 </script>
@@ -1516,43 +1658,6 @@ export default {
 	border-radius: 16rpx;
 	font-size: 32rpx;
 	font-weight: 600;
-	border: none;
-}
-
-/* 保存状态显示 */
-.save-status-box {
-	margin-top: 30rpx;
-	background: #f8f9fa;
-	border-radius: 16rpx;
-	padding: 24rpx;
-	border: 2rpx solid #dee2e6;
-}
-
-.status-title {
-	font-size: 28rpx;
-	font-weight: 600;
-	color: #495057;
-	margin-bottom: 16rpx;
-}
-
-.status-text {
-	font-size: 24rpx;
-	color: #6c757d;
-	line-height: 1.8;
-	font-family: 'Courier New', monospace;
-	white-space: pre-wrap;
-	word-break: break-all;
-	display: block;
-	margin-bottom: 20rpx;
-}
-
-.close-status-btn {
-	width: 100%;
-	background: #6c757d;
-	color: white;
-	padding: 20rpx;
-	border-radius: 12rpx;
-	font-size: 28rpx;
 	border: none;
 }
 
