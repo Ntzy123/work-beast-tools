@@ -880,10 +880,108 @@ export default {
 			// #endif
 
 			// #ifndef H5
-			// APP环境：保存到 /lebang/waterimages/ 目录
-			this.saveImageToCustomPath()
+			// APP环境：先检查"所有文件访问权限"，然后保存到 /lebang/waterimages/
+			this.checkStoragePermissionAndSave()
 			// #endif
 		},
+		
+		// #ifndef H5
+		// 检查存储权限（Android 11+ 需要"所有文件访问权限"）
+		checkStoragePermissionAndSave() {
+			// 检查 Android 版本
+			const main = plus.android.runtimeMainActivity()
+			const Build = plus.android.importClass('android.os.Build')
+			const sdkInt = Build.VERSION.SDK_INT
+			
+			console.log('Android SDK 版本:', sdkInt)
+			
+			// Android 11 (API 30) 及以上需要 MANAGE_EXTERNAL_STORAGE 权限
+			if (sdkInt >= 30) {
+				const Environment = plus.android.importClass('android.os.Environment')
+				const hasPermission = Environment.isExternalStorageManager()
+				
+				console.log('是否有所有文件访问权限:', hasPermission)
+				
+				if (!hasPermission) {
+					// 没有权限，引导用户去设置
+					uni.showModal({
+						title: '需要授予权限',
+						content: '保存到自定义目录需要"所有文件访问权限"\n\n点击确定后，请在设置页面开启"允许访问所有文件"',
+						confirmText: '去设置',
+						cancelText: '取消',
+						success: (res) => {
+							if (res.confirm) {
+								this.openAllFilesAccessSetting()
+							}
+						}
+					})
+					return
+				}
+			} else {
+				// Android 10 及以下，检查 WRITE_EXTERNAL_STORAGE 权限
+				const result = plus.android.checkPermission('android.permission.WRITE_EXTERNAL_STORAGE')
+				console.log('WRITE_EXTERNAL_STORAGE 权限状态:', result)
+				
+				if (result === -1) {
+					// 没有权限，动态申请
+					plus.android.requestPermissions(
+						['android.permission.WRITE_EXTERNAL_STORAGE'],
+						(resultObj) => {
+							for (const name in resultObj.granted) {
+								if (resultObj.granted[name]) {
+									this.saveImageToCustomPath()
+									return
+								}
+							}
+							uni.showToast({
+								title: '未授予存储权限',
+								icon: 'none'
+							})
+						},
+						(error) => {
+							console.error('权限申请失败:', error)
+							uni.showToast({
+								title: '权限申请失败',
+								icon: 'none'
+							})
+						}
+					)
+					return
+				}
+			}
+			
+			// 有权限，直接保存
+			this.saveImageToCustomPath()
+		},
+		
+		// 打开"所有文件访问权限"设置页面（Android 11+）
+		openAllFilesAccessSetting() {
+			try {
+				const main = plus.android.runtimeMainActivity()
+				const Intent = plus.android.importClass('android.content.Intent')
+				const Settings = plus.android.importClass('android.provider.Settings')
+				const Uri = plus.android.importClass('android.net.Uri')
+				
+				const intent = new Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION)
+				const uri = Uri.parse('package:' + main.getPackageName())
+				intent.setData(uri)
+				
+				main.startActivity(intent)
+				
+				uni.showToast({
+					title: '请在设置中开启权限',
+					icon: 'none',
+					duration: 3000
+				})
+			} catch (e) {
+				console.error('打开设置页面失败:', e)
+				uni.showToast({
+					title: '无法打开设置页面',
+					icon: 'none'
+				})
+			}
+		},
+		// #endif
 		
 		// #ifndef H5
 		// APP端保存到自定义路径
@@ -966,7 +1064,6 @@ export default {
 			)
 		},
 		
-		// #ifndef H5
 		// 复制文件到目标目录
 		copyFileToTarget(timeoutId, targetDirEntry, fileName) {
 			this.saveStatus += '\n\n🔄 访问源文件...'
@@ -1009,8 +1106,6 @@ export default {
 					icon: 'none'
 				})
 			})
-		},
-		// #endif
 		},
 		// #endif
 		

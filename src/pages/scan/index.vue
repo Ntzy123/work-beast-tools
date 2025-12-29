@@ -1,10 +1,7 @@
 <template>
 	<view class="scan-page">
-		<!-- 状态栏占位 -->
-		<view class="status-bar" :style="{ height: statusBarHeight + 'px' }"></view>
-		
 		<!-- 扫码区域占位（barcode原生控件会渲染在这里） -->
-		<view class="scan-container" :style="{ height: cameraHeight + 'px' }"></view>
+		<view class="scan-container" :style="{ height: screenHeight + 'px' }"></view>
 		
 		<!-- H5环境提示 -->
 		<view v-if="isH5" class="h5-overlay">
@@ -33,22 +30,21 @@
 			<cover-view class="tip-text">将二维码放入框内，即可自动扫描</cover-view>
 		</cover-view>
 		
-		<!-- 返回按钮 -->
-		<cover-view class="back-btn" @click="goBack">
-			<cover-view class="back-icon">&lt;</cover-view>
-		</cover-view>
-		
-		<!-- 底部操作栏 -->
+		<!-- 底部操作栏（使用cover-view确保在原生控件上方） -->
 		<cover-view class="bottom-toolbar" v-if="!isH5">
 			<!-- 手电筒按钮 -->
-			<cover-view class="tool-btn flashlight-btn" @click="toggleFlashlight">
-				<cover-view class="tool-icon" :class="{ active: flashlightOn }">💡</cover-view>
+			<cover-view class="tool-btn" @click="toggleFlashlight">
+				<cover-view class="tool-icon-wrapper" :class="{ active: flashlightOn }">
+					<cover-view class="tool-emoji">💡</cover-view>
+				</cover-view>
 				<cover-view class="tool-label">{{ flashlightOn ? '关闭' : '手电筒' }}</cover-view>
 			</cover-view>
 			
 			<!-- 相册按钮 -->
-			<cover-view class="tool-btn album-btn" @click="chooseFromAlbum">
-				<cover-view class="tool-icon">🖼️</cover-view>
+			<cover-view class="tool-btn" @click="chooseFromAlbum">
+				<cover-view class="tool-icon-wrapper">
+					<cover-view class="tool-emoji">🖼️</cover-view>
+				</cover-view>
 				<cover-view class="tool-label">相册</cover-view>
 			</cover-view>
 		</cover-view>
@@ -107,18 +103,17 @@ export default {
 		const systemInfo = uni.getSystemInfoSync()
 		this.statusBarHeight = systemInfo.statusBarHeight || 0
 		this.screenHeight = systemInfo.windowHeight
-		this.cameraHeight = systemInfo.windowHeight - this.statusBarHeight
+		this.cameraHeight = systemInfo.windowHeight
 		
 		this.addDebugLog('扫码页面加载', 'info')
 		this.addDebugLog(`平台: ${systemInfo.platform}`, 'info')
+		this.addDebugLog(`屏幕高度: ${this.screenHeight}px`, 'info')
 		this.addDebugLog(`isH5: ${this.isH5}`, 'info')
-		this.addDebugLog(`状态栏高度: ${this.statusBarHeight}px`, 'info')
-		this.addDebugLog(`相机高度: ${this.cameraHeight}px`, 'info')
 		
 		// 启动扫描线动画
 		this.isScanning = true
 		
-		// 初始化相机和canvas上下文
+		// 初始化扫码
 		if (!this.isH5) {
 			setTimeout(() => {
 				this.initScan()
@@ -201,14 +196,14 @@ export default {
 				const sys = plus.os.name
 				this.addDebugLog(`系统: ${sys}`, 'info')
 				
-				// 创建barcode扫码控件
+				// 创建barcode扫码控件（从顶部0开始，覆盖整个屏幕）
 				this.barcode = plus.barcode.create('barcode', 
 					[plus.barcode.QR, plus.barcode.EAN13, plus.barcode.EAN8], 
 					{
-						top: this.statusBarHeight + 'px',
+						top: '0px',
 						left: '0px',
 						width: '100%',
-						height: this.cameraHeight + 'px',
+						height: '100%',
 						position: 'static'
 					}
 				)
@@ -456,20 +451,10 @@ export default {
 	overflow: hidden;
 }
 
-.status-bar {
-	width: 100%;
-	background: transparent;
-	position: fixed;
-	top: 0;
-	left: 0;
-	z-index: 999;
-	pointer-events: none;
-}
-
-/* 扫码区域容器 */
+/* 扫码区域容器（barcode会覆盖在这里） */
 .scan-container {
 	width: 100%;
-	position: relative;
+	height: 100vh;
 	background: #000;
 }
 
@@ -527,31 +512,7 @@ export default {
 	text-align: center;
 }
 
-/* 返回按钮 - 简洁设计，无边框 */
-.back-btn {
-	position: fixed;
-	top: 0;
-	left: 0;
-	width: 80rpx;
-	height: 80rpx;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	z-index: 1001;
-	margin: 60rpx 0 0 40rpx;
-	transition: all 0.3s ease;
-}
-
-.back-btn:active {
-	transform: scale(0.9);
-}
-
-.back-icon {
-	font-size: 56rpx;
-	color: #fff;
-	font-weight: normal;
-	text-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.5);
-}
+/* 移除自定义返回按钮，使用系统导航栏 */
 
 /* 扫码框 (装饰性，不阻挡扫码) */
 .scan-box {
@@ -660,7 +621,7 @@ export default {
 	justify-content: space-around;
 	align-items: center;
 	padding: 0 120rpx;
-	z-index: 999;
+	z-index: 10000;
 }
 
 .tool-btn {
@@ -668,14 +629,9 @@ export default {
 	flex-direction: column;
 	align-items: center;
 	gap: 16rpx;
-	transition: all 0.3s ease;
 }
 
-.tool-btn:active {
-	transform: scale(0.9);
-}
-
-.tool-icon {
+.tool-icon-wrapper {
 	width: 120rpx;
 	height: 120rpx;
 	background: rgba(255, 255, 255, 0.2);
@@ -683,17 +639,23 @@ export default {
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	font-size: 56rpx;
 	backdrop-filter: blur(10px);
 	-webkit-backdrop-filter: blur(10px);
 	border: 2rpx solid rgba(255, 255, 255, 0.3);
-	transition: all 0.3s ease;
 }
 
-.tool-icon.active {
+.tool-icon-wrapper.active {
 	background: rgba(255, 255, 0, 0.3);
 	border-color: rgba(255, 255, 0, 0.6);
 	box-shadow: 0 0 30rpx rgba(255, 255, 0, 0.5);
+}
+
+.tool-emoji {
+	font-size: 56rpx;
+	line-height: 1;
+	display: flex;
+	align-items: center;
+	justify-content: center;
 }
 
 .tool-label {
