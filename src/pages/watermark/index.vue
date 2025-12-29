@@ -187,15 +187,6 @@ export default {
 			const hasImage = !!this.imagePath
 			const hasName = !!(this.formData.name && this.formData.name.trim())
 			const canGen = hasImage && hasName
-			console.log('canGenerate检查:', {
-				imagePath: this.imagePath,
-				hasImage,
-				name: this.formData.name,
-				nameLength: this.formData.name ? this.formData.name.length : 0,
-				nameTrimmed: this.formData.name ? this.formData.name.trim() : '',
-				hasName,
-				canGenerate: canGen
-			})
 			return canGen
 		},
 		timeValue() {
@@ -241,7 +232,6 @@ export default {
 				attempts++
 			} while (existingIds.includes(randomId) && attempts < maxAttempts)
 			
-			console.log('随机生成员工ID:', randomId)
 			return randomId
 		},
 		
@@ -250,7 +240,6 @@ export default {
 			// 1. 获取员工ID（如果找不到则随机生成）
 			let staffId = staffMap[this.formData.name]
 			if (!staffId) {
-				console.warn('未找到该员工的ID:', this.formData.name, '，将使用随机ID')
 				staffId = this.generateRandomStaffId()
 			}
 			
@@ -262,7 +251,6 @@ export default {
 			const coords = this.generateRandomCoordinates()
 			const la = coords.la
 			const lo = coords.lo
-			console.log('随机生成的经纬度:', `纬度=${la}, 经度=${lo}`)
 			
 			// 4. 构建明文数据对象
 			const data = {
@@ -294,7 +282,6 @@ export default {
 			// 8. 构建最终的 JSON 字符串（保留 \u003d 不被转义）
 			const finalText = `{"text":"${encryptedText.replace(/=/g, '\\u003d')}","version":"v1.0"}`
 			
-			console.log('生成的二维码文本:', finalText)
 			return finalText
 		},
 		chooseImage() {
@@ -303,11 +290,8 @@ export default {
 				sourceType: ['album', 'camera'],
 				success: (res) => {
 					this.imagePath = res.tempFilePaths[0]
-					console.log('图片选择成功:', this.imagePath)
-					console.log('当前canGenerate状态:', this.canGenerate)
 				},
 				fail: (err) => {
-					console.error('选择图片失败:', err)
 				}
 			})
 		},
@@ -341,16 +325,9 @@ export default {
 			return `${time.hour}:${time.minute}`
 		},
 		handleGenerateClick() {
-			console.log('点击生成按钮')
-			console.log('canGenerate:', this.canGenerate)
-			console.log('imagePath:', this.imagePath, '类型:', typeof this.imagePath, '存在:', !!this.imagePath)
-			console.log('name:', this.formData.name, '类型:', typeof this.formData.name, 'trim后:', this.formData.name ? this.formData.name.trim() : '')
-			
 			// 手动检查，不依赖computed，确保准确性
 			const hasImage = !!this.imagePath && this.imagePath.trim && this.imagePath.trim().length > 0
 			const hasName = !!(this.formData.name && this.formData.name.trim && this.formData.name.trim().length > 0)
-			
-			console.log('手动检查结果:', { hasImage, hasName })
 			
 			if (!hasImage) {
 				uni.showToast({
@@ -393,14 +370,9 @@ export default {
 					this.canvasWidth = targetWidth
 					this.canvasHeight = targetHeight
 					
-					console.log(`Canvas尺寸设置: ${targetWidth}x${targetHeight}`)
-					console.log(`原图尺寸: ${imageInfo.width}x${imageInfo.height}`)
-					
 				// 等待下一帧确保canvas尺寸更新
 				this.$nextTick(() => {
-					console.log('开始创建Canvas上下文')
 					const ctx = uni.createCanvasContext('watermarkCanvas', this)
-					console.log('Canvas上下文创建成功')
 					
 					// 计算缩放比例（以标准化后的 1080px 为基准）
 					const scale = targetWidth / 750
@@ -476,20 +448,15 @@ export default {
 					
 					this.drawRoundedRect(ctx, locBoxX, locBoxY, locBoxWidth, locBoxHeight, borderRadius, bgColor)
 					
-				// 绘制定位图标（使用 PNG 图片，完美支持透明）
-				// 【PNG 方案】兼容性最好，H5 和 APP 都完美支持透明效果
-				
-				const iconSize = 24 // 图标显示尺寸 24x24px
+				// 绘制定位图标（原生像素加载PNG，保留透明通道）
 				const iconX = locBoxX + 18 // 距离定位框左边缘 18px
-				const iconY = locBoxY + (locBoxHeight - iconSize) / 2 // 垂直居中
+				const iconY = locBoxY + 19 // 距离定位框顶部 19px（可根据实际PNG尺寸调整）
 				
-				// 绘制 PNG 图标（带透明通道）
+				// 以原生像素加载PNG图标，不缩放
 				ctx.drawImage(
 					'/static/images/location-pin.png',
 					iconX,
-					iconY,
-					iconSize,
-					iconSize
+					iconY
 				)
 						
 					// 绘制定位文字（垂直居中）
@@ -506,14 +473,10 @@ export default {
 								throw new Error('无法生成二维码文本')
 							}
 							
-							console.log('开始生成二维码，文本长度:', qrCodeText.length)
-							
 							// 生成二维码数据
 							const qrData = QRCode.create(qrCodeText, {
 								errorCorrectionLevel: 'L'
 							})
-							
-							console.log(`二维码生成成功: 版本${qrData.version}, 模块数${qrData.modules.size}x${qrData.modules.size}`)
 							
 							const modules = qrData.modules.data
 							const mCount = qrData.modules.size
@@ -553,11 +516,8 @@ export default {
 									}
 								}
 							}
-							console.log(`二维码绘制完成: 共绘制${rectCount}个黑色模块`)
 							
 					} catch (qrErr) {
-						console.error('二维码生成失败:', qrErr)
-						
 						// 在二维码位置绘制错误提示
 						const qrSize = 258
 						const qrX = targetWidth - qrSize
@@ -579,25 +539,19 @@ export default {
 					}
 					
 					// 统一绘制所有内容到画布
-					console.log('准备调用ctx.draw()提交绘制')
 					ctx.draw(false, () => {
-						console.log('ctx.draw()回调执行，Canvas绘制已提交')
-						
 						// 【关键】在不同平台使用不同的延迟时间，确保绘制完成
 						// H5 环境较快，APP 环境需要更多时间
 						let delay = 500
 						// #ifdef APP-PLUS
 						delay = 800
-						console.log('APP 环境，使用更长的延迟:', delay)
 						// #endif
 						// #ifdef H5
 						delay = 300
-						console.log('H5 环境，使用较短的延迟:', delay)
 						// #endif
 						
 						// 将canvas转为图片（jpg格式）
 						setTimeout(() => {
-							console.log('开始调用canvasToTempFilePath')
 							uni.canvasToTempFilePath({
 								canvasId: 'watermarkCanvas',
 								width: targetWidth,
@@ -607,13 +561,10 @@ export default {
 								fileType: 'jpg', // 指定输出为jpg格式
 								quality: 0.9,    // 图片质量（0-1，默认0.9）
 									success: (res) => {
-										console.log('canvasToTempFilePath成功，临时文件路径:', res.tempFilePath)
 										// 处理EXIF数据
 										this.processImageWithExif(res.tempFilePath)
 									},
 								fail: (err) => {
-									console.error('canvasToTempFilePath失败:', err)
-									console.error('错误码:', err.errMsg)
 									uni.hideLoading()
 									uni.showToast({
 										title: '生成失败',
@@ -711,7 +662,6 @@ export default {
 				
 				return newBase64
 			} catch (err) {
-				console.error('添加EXIF失败:', err)
 				// 如果添加EXIF失败，返回原图
 				return base64Image
 			}
@@ -732,7 +682,6 @@ export default {
 						icon: 'success'
 					})
 				} catch (err) {
-					console.error('EXIF处理失败:', err)
 					// 降级：使用原图
 					this.resultImage = tempFilePath
 					uni.hideLoading()
@@ -758,7 +707,6 @@ export default {
 									icon: 'success'
 								})
 							} catch (err) {
-								console.error('EXIF处理失败:', err)
 								this.resultImage = tempFilePath
 								uni.hideLoading()
 								uni.showToast({
@@ -770,7 +718,6 @@ export default {
 						reader.readAsDataURL(blob)
 					})
 					.catch(err => {
-						console.error('读取图片失败:', err)
 						this.resultImage = tempFilePath
 						uni.hideLoading()
 						uni.showToast({
@@ -815,7 +762,6 @@ export default {
 										})
 									}
 									writer.onerror = (err) => {
-										console.error('写入文件失败:', err)
 										// 降级：使用原图
 										this.resultImage = tempFilePath
 										uni.hideLoading()
@@ -828,7 +774,6 @@ export default {
 								})
 							})
 						} catch (err) {
-							console.error('EXIF处理失败:', err)
 							// 降级：使用原图
 							this.resultImage = tempFilePath
 							uni.hideLoading()
@@ -841,7 +786,6 @@ export default {
 					reader.readAsDataURL(file)
 				})
 			}, (err) => {
-				console.error('读取文件失败:', err)
 				// 降级：使用原图
 				this.resultImage = tempFilePath
 				uni.hideLoading()
@@ -871,7 +815,6 @@ export default {
 					icon: 'success'
 				})
 			} catch (e) {
-				console.error('H5下载失败:', e)
 				uni.showToast({
 					title: '下载失败',
 					icon: 'none'
@@ -893,14 +836,10 @@ export default {
 			const Build = plus.android.importClass('android.os.Build')
 			const sdkInt = Build.VERSION.SDK_INT
 			
-			console.log('Android SDK 版本:', sdkInt)
-			
 			// Android 11 (API 30) 及以上需要 MANAGE_EXTERNAL_STORAGE 权限
 			if (sdkInt >= 30) {
 				const Environment = plus.android.importClass('android.os.Environment')
 				const hasPermission = Environment.isExternalStorageManager()
-				
-				console.log('是否有所有文件访问权限:', hasPermission)
 				
 				if (!hasPermission) {
 					// 没有权限，引导用户去设置
@@ -920,7 +859,6 @@ export default {
 			} else {
 				// Android 10 及以下，检查 WRITE_EXTERNAL_STORAGE 权限
 				const result = plus.android.checkPermission('android.permission.WRITE_EXTERNAL_STORAGE')
-				console.log('WRITE_EXTERNAL_STORAGE 权限状态:', result)
 				
 				if (result === -1) {
 					// 没有权限，动态申请
@@ -939,7 +877,6 @@ export default {
 							})
 						},
 						(error) => {
-							console.error('权限申请失败:', error)
 							uni.showToast({
 								title: '权限申请失败',
 								icon: 'none'
@@ -974,7 +911,6 @@ export default {
 					duration: 3000
 				})
 			} catch (e) {
-				console.error('打开设置页面失败:', e)
 				uni.showToast({
 					title: '无法打开设置页面',
 					icon: 'none'
@@ -989,8 +925,6 @@ export default {
 			this.saveStatus = '📱 开始保存...\n'
 			this.saveStatus += `源文件: ${this.resultImage}\n`
 			this.showSaveStatus = true
-			
-			console.log('=== 开始保存图片 ===')
 			
 			uni.showLoading({
 				title: '保存中...',
@@ -1173,14 +1107,11 @@ export default {
 				intent.setData(uri)
 				main.sendBroadcast(intent)
 				
-				console.log('媒体扫描广播已发送:', filePath)
-				
 				if (callback) {
 					// 延迟一下确保扫描完成
 					setTimeout(callback, 500)
 				}
 			} catch (e) {
-				console.error('媒体扫描失败:', e)
 				// 即使扫描失败也执行回调
 				if (callback) {
 					callback()

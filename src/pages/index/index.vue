@@ -93,12 +93,76 @@ export default {
 	},
 	methods: {
 		handleScan() {
-			// 扫码功能待实现
-			uni.showToast({
-				title: '扫码功能开发中',
-				icon: 'none',
-				duration: 2000
+			// 调用扫码API
+			uni.scanCode({
+				// 不限制只从相机扫码，允许从相册选择
+				onlyFromCamera: false,
+				// 只扫描二维码
+				scanType: ['qrCode'],
+				// 启用自动放大（仅支持 App-Android 3.5.4+）
+				autoZoom: true,
+				success: (res) => {
+					console.log('扫码成功:', res)
+					// 扫码成功后处理结果
+					this.handleScanResult(res.result)
+				},
+				fail: (err) => {
+					console.error('扫码失败:', err)
+					// 用户取消或识别失败
+					if (err.errMsg && err.errMsg.indexOf('cancel') === -1) {
+						uni.showToast({
+							title: '扫码失败',
+							icon: 'none',
+							duration: 2000
+						})
+					}
+				}
 			})
+		},
+		handleScanResult(result) {
+			// 判断扫码结果是否为URL
+			const isUrl = this.isValidUrl(result)
+			
+			if (isUrl) {
+				// 如果是URL，显示确认对话框询问是否打开
+				uni.showModal({
+					title: '扫码结果',
+					content: `检测到网址：\n${result}\n\n是否打开此链接？`,
+					confirmText: '打开',
+					cancelText: '取消',
+					success: (modalRes) => {
+						if (modalRes.confirm) {
+							// 用户点击确认，打开链接
+							this.openExternalUrl(result)
+						}
+					}
+				})
+			} else {
+				// 如果不是URL，直接显示扫码内容
+				uni.showModal({
+					title: '扫码结果',
+					content: result,
+					showCancel: false,
+					confirmText: '确定'
+				})
+			}
+		},
+		isValidUrl(string) {
+			// 判断字符串是否为有效的URL
+			try {
+				// 检查是否以http://或https://开头
+				if (string.startsWith('http://') || string.startsWith('https://')) {
+					new URL(string)
+					return true
+				}
+				// 检查是否为常见的URL格式（不带协议）
+				if (/^(www\.)?[\w-]+(\.[\w-]+)+/.test(string)) {
+					return true
+				}
+				return false
+			} catch (e) {
+				return false
+			}
 		},
 		handleSettings() {
 			uni.showToast({
