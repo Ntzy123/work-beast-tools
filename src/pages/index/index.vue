@@ -77,11 +77,6 @@
 					<view class="scan-modal-close" @click="closeScanModal">✕</view>
 				</view>
 				<view class="scan-modal-body">
-					<view class="scan-result-type" v-if="scanResult.scanType">
-						<text class="scan-label">类型：</text>
-						<text class="scan-value">{{ scanResult.scanType }}</text>
-					</view>
-					
 					<!-- 如果解密成功，显示格式化后的数据 -->
 					<view v-if="scanResult.isEncrypted && scanResult.decrypted" class="decrypted-content">
 						<view class="decrypted-header">
@@ -93,8 +88,7 @@
 							:key="index"
 						>
 							<view class="decrypted-item-label">{{ item.label }}：</view>
-							<view class="decrypted-item-value">{{ item.value }}</view>
-							<view class="decrypted-item-desc" v-if="item.description">{{ item.description }}</view>
+							<text class="decrypted-item-value" :class="{ 'location-value': item.label === '定位' }" selectable>{{ item.value }}</text>
 						</view>
 					</view>
 					
@@ -104,29 +98,24 @@
 					</view>
 					
 					<!-- 原始内容显示 -->
-					<view class="scan-result-content" v-if="!scanResult.isEncrypted || !scanResult.decrypted">
+					<view 
+						class="scan-result-content" 
+						:class="{ 'scan-content-clickable': !scanResult.isEncrypted && isUrl(scanResult.result) }"
+						v-if="!scanResult.isEncrypted || !scanResult.decrypted"
+						@click="handleContentClick"
+					>
 						<text class="scan-label">内容：</text>
-						<text class="scan-value scan-content">{{ scanResult.result }}</text>
-					</view>
-					
-					<!-- URL检测 -->
-					<view class="scan-result-url" v-if="!scanResult.isEncrypted && isUrl(scanResult.result)">
-						<text class="scan-label">网址：</text>
-						<text class="scan-value scan-url">{{ scanResult.result }}</text>
+						<text 
+							class="scan-value scan-content" 
+							:class="{ 'scan-url-clickable': !scanResult.isEncrypted && isUrl(scanResult.result) }"
+							selectable
+						>{{ scanResult.result }}</text>
 					</view>
 				</view>
 				<view class="scan-modal-footer">
 					<view class="scan-modal-btn cancel-btn" @click="closeScanModal">关闭</view>
 					<view 
-						class="scan-modal-btn confirm-btn" 
-						v-if="!scanResult.isEncrypted && isUrl(scanResult.result)"
-						@click="openScanUrl"
-					>
-						打开网址
-					</view>
-					<view 
 						class="scan-modal-btn copy-btn" 
-						v-else
 						@click="copyScanResult"
 					>
 						复制内容
@@ -139,6 +128,7 @@
 
 <script>
 import CryptoJS from 'crypto-js'
+import apiConfig from '@/config/api.config.json'
 
 export default {
 	data() {
@@ -180,9 +170,8 @@ export default {
 		// 从服务器获取最新的加密key（与watermark保持一致）
 		async fetchKeyFromServer() {
 			try {
-				// 动态导入配置文件
-				const apiConfig = await import('@/config/api.config.json')
-				const config = apiConfig.default.watermarkKey
+				// 使用静态导入的配置文件
+				const config = apiConfig.watermarkKey
 				
 				// 发起HTTP请求
 				const response = await new Promise((resolve, reject) => {
@@ -272,6 +261,19 @@ export default {
 			}
 		},
 		
+		// 将小数度转换为度分秒格式
+		decimalToDMS(decimal, isLatitude) {
+			const abs = Math.abs(decimal)
+			const degrees = Math.floor(abs)
+			const minutesFloat = (abs - degrees) * 60
+			const minutes = Math.floor(minutesFloat)
+			const seconds = Math.round((minutesFloat - minutes) * 60)
+			const direction = isLatitude 
+				? (decimal >= 0 ? 'N' : 'S')
+				: (decimal >= 0 ? 'E' : 'W')
+			return `${degrees}°${minutes}'${seconds}"${direction}`
+		},
+		
 		// 格式化解密后的数据为人类可读的中文
 		formatDecryptedData(data) {
 			if (!data || typeof data !== 'object') {
@@ -284,27 +286,41 @@ export default {
 			if (data.n) {
 				formatted.push({
 					label: '姓名',
-					value: data.n,
-					description: '水印中的姓名信息'
+					value: data.n
 				})
 			}
 			
 			// 时间戳
 			if (data.ot) {
 				const date = new Date(data.ot * 1000)
-				const dateStr = date.toLocaleString('zh-CN', {
-					year: 'numeric',
-					month: '2-digit',
-					day: '2-digit',
-					hour: '2-digit',
-					minute: '2-digit',
-					second: '2-digit',
-					hour12: false
-				})
+				const year = date.getFullYear()
+				const month = String(date.getMonth() + 1).padStart(2, '0')
+				const day = String(date.getDate()).padStart(2, '0')
+				const hours = String(date.getHours()).padStart(2, '0')
+				const minutes = String(date.getMinutes()).padStart(2, '0')
+				const seconds = String(date.getSeconds()).padStart(2, '0')
+				const dateStr = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`
 				formatted.push({
 					label: '时间',
-					value: dateStr,
-					description: '水印生成的时间（Unix时间戳：' + data.ot + '）'
+					value: dateStr
+				})
+			}
+			
+			// 地理位置信息
+			if (data.g && data.g.la !== undefined && data.g.lo !== undefined) {
+				const latitude = this.decimalToDMS(data.g.la, true)
+				const longitude = this.decimalToDMS(data.g.lo, false)
+				formatted.push({
+					label: '定位',
+					value: `${latitude}\n${longitude}`
+				})
+			}
+			
+			// 时间可靠性
+			if (data.or !== undefined) {
+				formatted.push({
+					label: '时间可靠性',
+					value: data.or.toString()
 				})
 			}
 			
@@ -312,40 +328,8 @@ export default {
 			if (data.s) {
 				formatted.push({
 					label: '员工ID',
-					value: data.s.toString(),
-					description: '员工唯一标识符'
+					value: data.s.toString()
 				})
-			}
-			
-			// 来源
-			if (data.or !== undefined) {
-				const originMap = {
-					1: '未知来源',
-					2: '水印工具生成'
-				}
-				formatted.push({
-					label: '来源',
-					value: originMap[data.or] || '未知（' + data.or + '）',
-					description: '数据来源标识'
-				})
-			}
-			
-			// 地理位置信息
-			if (data.g) {
-				const geo = data.g
-				if (geo.la && geo.lo) {
-					formatted.push({
-						label: '地理位置',
-						value: `纬度：${geo.la}，经度：${geo.lo}`,
-						description: `坐标系统：${geo.c || '未知'}${geo.n ? '，位置名称：' + geo.n : ''}`
-					})
-				} else if (geo.c) {
-					formatted.push({
-						label: '坐标系统',
-						value: geo.c,
-						description: '地理位置坐标系统'
-					})
-				}
 			}
 			
 			return formatted
@@ -356,7 +340,7 @@ export default {
 			// 允许从相机和相册扫码，启用自动放大，只扫描二维码
 			uni.scanCode({
 				scanType: ['qrCode'], // 只扫描二维码
-				autoZoom: true, // 启用自动放大（仅App-Android支持）
+				// autoZoom: true, // 启用自动放大（仅App-Android支持）
 				success: async (res) => {
 					console.log('扫码成功', res)
 					const scanText = res.result || ''
@@ -484,6 +468,13 @@ export default {
 					})
 				}
 			})
+		},
+		// 处理内容框点击事件
+		handleContentClick() {
+			// 如果是网址类型，点击时打开网址
+			if (!this.scanResult.isEncrypted && this.isUrl(this.scanResult.result)) {
+				this.openScanUrl()
+			}
 		},
 		handleSettings() {
 			uni.showToast({
@@ -999,6 +990,8 @@ export default {
 	line-height: 1.6;
 	display: block;
 	word-break: break-all;
+	user-select: text;
+	-webkit-user-select: text;
 }
 
 .scan-content {
@@ -1006,9 +999,19 @@ export default {
 	background: #f8f9fa;
 	border-radius: 16rpx;
 	min-height: 80rpx;
+	user-select: text;
+	-webkit-user-select: text;
 }
 
-.scan-url {
+.scan-content-clickable {
+	cursor: pointer;
+}
+
+.scan-content-clickable:active {
+	background: #e9ecef;
+}
+
+.scan-url-clickable {
 	color: #667eea;
 	text-decoration: underline;
 }
@@ -1093,13 +1096,13 @@ export default {
 	font-weight: 500;
 	margin-bottom: 8rpx;
 	word-break: break-all;
+	user-select: text;
+	-webkit-user-select: text;
 }
 
-.decrypted-item-desc {
-	font-size: 24rpx;
-	color: #999;
-	line-height: 1.5;
-	margin-top: 8rpx;
+.decrypted-item-value.location-value {
+	white-space: pre-line;
+	line-height: 1.8;
 }
 
 .decrypt-failed {

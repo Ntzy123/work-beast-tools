@@ -121,6 +121,7 @@ import QRCode from 'qrcode'
 import CryptoJS from 'crypto-js'
 import staffMap from '@/utils/staffMap.json'
 import piexif from 'piexifjs'
+import apiConfig from '@/config/api.config.json'
 
 export default {
 	data() {
@@ -206,9 +207,8 @@ export default {
 		// 从服务器获取最新的加密key
 		async fetchKeyFromServer() {
 			try {
-				// 动态导入配置文件
-				const apiConfig = await import('@/config/api.config.json')
-				const config = apiConfig.default.watermarkKey
+				// 使用静态导入的配置文件
+				const config = apiConfig.watermarkKey
 				
 				// 发起HTTP请求
 				const response = await new Promise((resolve, reject) => {
@@ -437,6 +437,7 @@ export default {
 						// 1. 绘制上方信息块（时间、姓名、日期）
 					const timeFontSize = 74 // 时间字体 74px
 						ctx.setFontSize(timeFontSize)
+						ctx.font = `200 ${timeFontSize}px "Noto Serif CJK SC", "思源宋体", "SimSun", serif`
 						const timeText = this.formData.time.hour + ':' + this.formData.time.minute
 					const timeWidth = ctx.measureText ? ctx.measureText(timeText).width : 140
 						
@@ -446,6 +447,7 @@ export default {
 						// 准备右侧文本
 					const smallFontSize = 30 // 姓名、日期、定位字体 30px
 						ctx.setFontSize(smallFontSize)
+						ctx.font = `${smallFontSize}px "Noto Serif CJK SC", "思源宋体", "SimSun", serif`
 						const nameText = this.formData.name
 						const dateText = this.formatDate(this.formData.date)
 						const nameWidth = ctx.measureText ? ctx.measureText(nameText).width : 80 * scale
@@ -453,7 +455,7 @@ export default {
 						const rightContentWidth = Math.max(nameWidth, dateWidth)
 						
 					const infoBoxHeight = 106 // 固定高度 106px
-					const infoBoxWidth = 469 // 固定宽度 469px
+					const infoBoxWidth = 469 // 固定宽度 475px（原469px + 6px）
 						const infoBoxX = edgePadding
 					
 					// 【位置修改处】：定位框距离底边63px，信息框与定位框间距14px
@@ -464,13 +466,13 @@ export default {
 						
 						this.drawRoundedRect(ctx, infoBoxX, infoBoxY, infoBoxWidth, infoBoxHeight, borderRadius, bgColor)
 						
-					// 绘制时间（垂直居中）
+					// 绘制时间（垂直居中，向左9px，向下5px）
 						ctx.setFillStyle(textColor)
 						ctx.setFontSize(timeFontSize)
 						ctx.setTextAlign('left')
 					// 106px 高度，时间垂直居中
-					const timeY = infoBoxY + (infoBoxHeight + timeFontSize) / 2 - 10
-					ctx.fillText(timeText, infoBoxX + timeInnerPadding, timeY)
+					const timeY = infoBoxY + (infoBoxHeight + timeFontSize) / 2 - 10 + 5 // 向下5px
+					ctx.fillText(timeText, infoBoxX + timeInnerPadding, timeY) // 向左0px
 						
 					// 绘制姓名和日期（三个间距保持一致）
 						ctx.setFontSize(smallFontSize)
