@@ -61,15 +61,30 @@
 				</view>
 			</view>
 
-			<!-- 时间跨度（多选照片时显示） -->
-			<view class="form-section" v-if="imagePaths.length > 1">
-				<view class="section-title">时间跨度（分钟）</view>
-				<input 
-					class="simple-input" 
-					v-model.number="timeSpan"
-					placeholder="请输入时间跨度"
-					type="digit"
-				/>
+			<!-- 多图模式和时间跨度 -->
+			<view class="form-section" v-if="imagePath || imagePaths.length > 0">
+				<view class="section-title">多图模式</view>
+				<view class="multi-image-row">
+					<view class="multi-image-selector">
+						<picker mode="selector" :range="multiImageModeRange" :value="multiImageMode - 1" @change="onMultiImageModeChange">
+							<view class="time-item">
+								<text class="time-label">倍数</text>
+								<text class="time-value">×{{ multiImageMode }}</text>
+							</view>
+						</picker>
+					</view>
+					<view class="time-span-input" v-if="multiImageMode > 1 || (multiImageMode === 1 && imagePaths.length > 1)">
+						<view class="time-item">
+							<text class="time-label">时间跨度（分钟）</text>
+							<input 
+								class="time-span-input-field" 
+								v-model.number="timeSpan"
+								placeholder="10"
+								type="digit"
+							/>
+						</view>
+					</view>
+				</view>
 			</view>
 
 			<!-- 生成按钮 -->
@@ -157,6 +172,8 @@ export default {
 		
 		// 生成秒的选择范围 0-59
 		const secondRange = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0'))
+		// 多图模式选择范围 1-10
+		const multiImageModeRange = Array.from({ length: 10 }, (_, i) => i + 1)
 		
 		return {
 			isH5,
@@ -164,6 +181,8 @@ export default {
 			imagePaths: [],
 			resultImage: '',
 			timeSpan: 10,
+			multiImageMode: 1,
+			multiImageModeRange,
 			formData: {
 				name: '',
 				date: currentDate,
@@ -385,6 +404,9 @@ export default {
 		onSecondChange(e) {
 			this.formData.time.second = parseInt(e.detail.value)
 		},
+		onMultiImageModeChange(e) {
+			this.multiImageMode = parseInt(e.detail.value) + 1
+		},
 		formatDate(date) {
 			if (!date) return ''
 			const d = new Date(date)
@@ -418,7 +440,7 @@ export default {
 				return
 			}
 
-			if (this.imagePaths.length > 1 && (!this.timeSpan || this.timeSpan <= 0)) {
+			if ((this.multiImageMode > 1 || (this.multiImageMode === 1 && this.imagePaths.length > 1)) && (!this.timeSpan || this.timeSpan <= 0)) {
 				uni.showToast({
 					title: '请输入时间跨度',
 					icon: 'none',
@@ -432,13 +454,76 @@ export default {
 	async generateWatermark() {
 		await this.fetchKeyFromServer()
 
-		if (this.imagePaths.length > 1) {
-			// 批量处理多张照片
+		if (this.multiImageMode > 1) {
+			// 多图模式：将每张图片重复生成
+			this.generateMultiImageWatermarks()
+		} else if (this.imagePaths.length > 1) {
+			// 批量处理多张照片（原逻辑）
 			this.generateBatchWatermarks()
 		} else {
 			// 单张处理
 			uni.showLoading({ title: '生成中...' })
 			this.drawWatermark()
+		}
+	},
+	
+	// 多图模式生成
+	async generateMultiImageWatermarks() {
+		const sourceImages = this.imagePaths.length > 0 ? this.imagePaths : [this.imagePath]
+		const imageCount = sourceImages.length
+		const repeatCount = this.multiImageMode
+		const totalCount = imageCount * repeatCount
+		
+		const timeSpanMinutes = Math.round(this.timeSpan)
+		const timeSpanSeconds = timeSpanMinutes * 60
+		const segmentSeconds = Math.floor(timeSpanSeconds / totalCount)
+		
+		// 生成所有图片的时间槽
+		const timeSlots = []
+		for (let i = 0; i < totalCount; i++) {
+			const segmentStart = i * segmentSeconds
+			const segmentEnd = (i + 1) * segmentSeconds - 1
+			const randomSeconds = Math.floor(Math.random() * (segmentEnd - segmentStart + 1)) + segmentStart
+			timeSlots.push(randomSeconds)
+		}
+		
+		uni.showLoading({ title: `生成中 0/${totalCount}` })
+		
+		// 按顺序生成：图片1×3, 图片2×3, 图片3×3...
+		let currentIndex = 0
+		for (let imgIdx = 0; imgIdx < imageCount; imgIdx++) {
+			const sourceImage = sourceImages[imgIdx]
+			
+			for (let repeatIdx = 0; repeatIdx < repeatCount; repeatIdx++) {
+				const timeOffset = timeSlots[currentIndex]
+				
+				const baseTime = new Date(`${this.formData.date} ${this.formData.time.hour}:${this.formData.time.minute}:${String(this.formData.time.second).padStart(2, '0')}`)
+				const targetTime = new Date(baseTime.getTime() + timeOffset * 1000)
+				
+				const targetDate = `${targetTime.getFullYear()}-${String(targetTime.getMonth() + 1).padStart(2, '0')}-${String(targetTime.getDate()).padStart(2, '0')}`
+				const targetHour = String(targetTime.getHours()).padStart(2, '0')
+				const targetMinute = String(targetTime.getMinutes()).padStart(2, '0')
+				const targetSecond = targetTime.getSeconds()
+				
+				const originalTime = { ...this.formData.time }
+				const originalDate = this.formData.date
+				
+				this.formData.date = targetDate
+				this.formData.time = { hour: targetHour, minute: targetMinute, second: targetSecond }
+				this.imagePath = sourceImage
+				
+				await new Promise((resolve) => {
+					uni.showLoading({ title: `生成中 ${currentIndex + 1}/${totalCount}` })
+					this.drawWatermarkForBatch(resolve, currentIndex === totalCount - 1)
+				})
+				
+				if (currentIndex < totalCount - 1) {
+					this.formData.time = originalTime
+					this.formData.date = originalDate
+				}
+				
+				currentIndex++
+			}
 		}
 	},
 	
@@ -1907,6 +1992,30 @@ export default {
 	font-size: 28rpx;
 	color: #333;
 	font-weight: 500;
+}
+
+/* 多图模式行 */
+.multi-image-row {
+	display: flex;
+	gap: 20rpx;
+}
+
+.multi-image-selector {
+	width: 50%;
+}
+
+.time-span-input {
+	width: 50%;
+}
+
+.time-span-input-field {
+	width: 100%;
+	background: transparent;
+	border: none;
+	font-size: 28rpx;
+	color: #333;
+	font-weight: 500;
+	margin-top: 10rpx;
 }
 
 /* 生成按钮 */
