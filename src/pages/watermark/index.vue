@@ -5,12 +5,19 @@
 			<!-- 图片上传区域 -->
 			<view class="upload-section">
 				<view class="section-title">选择图片</view>
-				<view class="upload-area" @click="chooseImage" v-if="!imagePath">
+				<view class="upload-area" @click="chooseImage" v-if="!imagePath && imagePaths.length === 0">
 					<text class="upload-icon">📷</text>
 					<text class="upload-text">点击上传图片</text>
 				</view>
-				<view class="image-preview" v-else>
-				<image :src="imagePath" mode="aspectFit" class="preview-img" @click="previewImage(imagePath)"></image>
+				<view class="image-preview" v-else-if="imagePath">
+					<image :src="imagePath" mode="aspectFit" class="preview-img" @click="previewImage(imagePath)"></image>
+					<view class="image-actions">
+						<view class="action-btn" @click="chooseImage">重新选择</view>
+						<view class="action-btn delete" @click="removeImage">删除</view>
+					</view>
+				</view>
+				<view class="images-preview" v-else-if="imagePaths.length > 0">
+					<view class="images-count">已选择 {{ imagePaths.length }} 张照片</view>
 					<view class="image-actions">
 						<view class="action-btn" @click="chooseImage">重新选择</view>
 						<view class="action-btn delete" @click="removeImage">删除</view>
@@ -52,6 +59,17 @@
 						</view>
 					</picker>
 				</view>
+			</view>
+
+			<!-- 时间跨度（多选照片时显示） -->
+			<view class="form-section" v-if="imagePaths.length > 1">
+				<view class="section-title">时间跨度（分钟）</view>
+				<input 
+					class="simple-input" 
+					v-model.number="timeSpan"
+					placeholder="请输入时间跨度"
+					type="digit"
+				/>
 			</view>
 
 			<!-- 生成按钮 -->
@@ -143,7 +161,9 @@ export default {
 		return {
 			isH5,
 			imagePath: '',
+			imagePaths: [],
 			resultImage: '',
+			timeSpan: 10,
 			formData: {
 				name: '',
 				date: currentDate,
@@ -184,7 +204,7 @@ export default {
 	},
 	computed: {
 		canGenerate() {
-			const hasImage = !!this.imagePath
+			const hasImage = this.imagePaths.length > 0 || !!this.imagePath
 			const hasName = !!(this.formData.name && this.formData.name.trim())
 			const canGen = hasImage && hasName
 			return canGen
@@ -331,10 +351,16 @@ export default {
 		},
 		chooseImage() {
 			uni.chooseImage({
-				count: 1,
+				count: 9,
 				sourceType: ['album', 'camera'],
 				success: (res) => {
-					this.imagePath = res.tempFilePaths[0]
+					if (res.tempFilePaths.length === 1) {
+						this.imagePath = res.tempFilePaths[0]
+						this.imagePaths = []
+					} else {
+						this.imagePaths = res.tempFilePaths
+						this.imagePath = ''
+					}
 				},
 				fail: (err) => {
 				}
@@ -342,6 +368,7 @@ export default {
 		},
 		removeImage() {
 			this.imagePath = ''
+			this.imagePaths = []
 			this.resultImage = ''
 		},
 		onDateChange(e) {
@@ -370,8 +397,7 @@ export default {
 			return `${time.hour}:${time.minute}`
 		},
 		handleGenerateClick() {
-			// 手动检查，不依赖computed，确保准确性
-			const hasImage = !!this.imagePath && this.imagePath.trim && this.imagePath.trim().length > 0
+			const hasImage = (this.imagePaths.length > 0) || (!!this.imagePath && this.imagePath.trim && this.imagePath.trim().length > 0)
 			const hasName = !!(this.formData.name && this.formData.name.trim && this.formData.name.trim().length > 0)
 			
 			if (!hasImage) {
@@ -391,207 +417,109 @@ export default {
 				})
 				return
 			}
+
+			if (this.imagePaths.length > 1 && (!this.timeSpan || this.timeSpan <= 0)) {
+				uni.showToast({
+					title: '请输入时间跨度',
+					icon: 'none',
+					duration: 2000
+				})
+				return
+			}
 			
 		this.generateWatermark()
 	},
 	async generateWatermark() {
-		uni.showLoading({
-			title: '生成中...'
-		})
-
-		// 先尝试从服务器获取最新的加密key
 		await this.fetchKeyFromServer()
 
-		// 使用canvas绘制水印
-		this.drawWatermark()
+		if (this.imagePaths.length > 1) {
+			// 批量处理多张照片
+			this.generateBatchWatermarks()
+		} else {
+			// 单张处理
+			uni.showLoading({ title: '生成中...' })
+			this.drawWatermark()
+		}
 	},
-		drawWatermark() {
-			// 获取图片信息
-			uni.getImageInfo({
-				src: this.imagePath,
-				success: (imageInfo) => {
-				// --- 标准化处理：固定宽度为 1080px ---
-					const targetWidth = 1080
-					const targetHeight = (imageInfo.height / imageInfo.width) * targetWidth
-					
-					// 设置canvas尺寸为标准化后的尺寸
-					this.canvasWidth = targetWidth
-					this.canvasHeight = targetHeight
-					
-				// 等待下一帧确保canvas尺寸更新
+	
+	// 批量生成水印
+	async generateBatchWatermarks() {
+		const imageCount = this.imagePaths.length
+		const timeSpanMinutes = Math.round(this.timeSpan) // 四舍五入取整数
+		const timeSpanSeconds = timeSpanMinutes * 60
+		
+		// 计算每张照片的时间段
+		const segmentSeconds = Math.floor(timeSpanSeconds / imageCount)
+		
+		// 生成每张照片的随机时间
+		const timeSlots = []
+		for (let i = 0; i < imageCount; i++) {
+			const segmentStart = i * segmentSeconds
+			const segmentEnd = (i + 1) * segmentSeconds - 1
+			const randomSeconds = Math.floor(Math.random() * (segmentEnd - segmentStart + 1)) + segmentStart
+			timeSlots.push(randomSeconds)
+		}
+		
+		uni.showLoading({ title: `生成中 0/${imageCount}` })
+		
+		// 依次处理每张照片
+		for (let i = 0; i < imageCount; i++) {
+			const imagePath = this.imagePaths[i]
+			const timeOffset = timeSlots[i]
+			
+			// 计算该照片的时间
+			const baseTime = new Date(`${this.formData.date} ${this.formData.time.hour}:${this.formData.time.minute}:${String(this.formData.time.second).padStart(2, '0')}`)
+			const targetTime = new Date(baseTime.getTime() + timeOffset * 1000)
+			
+			const targetDate = `${targetTime.getFullYear()}-${String(targetTime.getMonth() + 1).padStart(2, '0')}-${String(targetTime.getDate()).padStart(2, '0')}`
+			const targetHour = String(targetTime.getHours()).padStart(2, '0')
+			const targetMinute = String(targetTime.getMinutes()).padStart(2, '0')
+			const targetSecond = targetTime.getSeconds()
+			
+			// 临时保存原始时间
+			const originalTime = { ...this.formData.time }
+			const originalDate = this.formData.date
+			
+			// 设置当前照片的时间
+			this.formData.date = targetDate
+			this.formData.time = { hour: targetHour, minute: targetMinute, second: targetSecond }
+			this.imagePath = imagePath
+			
+			// 等待当前照片处理完成
+			await new Promise((resolve) => {
+				uni.showLoading({ title: `生成中 ${i + 1}/${imageCount}` })
+				this.drawWatermarkForBatch(resolve, i === imageCount - 1)
+			})
+			
+			// 恢复原始时间（最后一张不需要恢复）
+			if (i < imageCount - 1) {
+				this.formData.time = originalTime
+				this.formData.date = originalDate
+			}
+		}
+	},
+	
+	// 为批量处理绘制单张水印
+	drawWatermarkForBatch(callback, isLast) {
+		uni.getImageInfo({
+			src: this.imagePath,
+			success: (imageInfo) => {
+				const targetWidth = 1080
+				const targetHeight = (imageInfo.height / imageInfo.width) * targetWidth
+				
+				this.canvasWidth = targetWidth
+				this.canvasHeight = targetHeight
+				
 				this.$nextTick(() => {
 					const ctx = uni.createCanvasContext('watermarkCanvas', this)
-					
-					// 计算缩放比例（以标准化后的 1080px 为基准）
 					const scale = targetWidth / 750
-						
-					// 第一步：绘制原图
+					
 					ctx.drawImage(this.imagePath, 0, 0, targetWidth, targetHeight)
-						
-						// --- 水印样式配置 ---
-					const edgePadding = 21 // 左边距离屏幕边缘 21px
-					const borderRadius = 16 // 圆角 16px
-					const bgColor = 'rgba(0, 0, 0, 0.3)' // 【透明度修改处】：0.3 表示更透明，数字越小越透明
-						const textColor = '#ffffff'
-						
-						// 1. 绘制上方信息块（时间、姓名、日期）
-					const timeFontSize = 74 // 时间字体 74px
-						ctx.setFontSize(timeFontSize)
-						ctx.font = `200 ${timeFontSize}px "Noto Serif CJK SC", "思源宋体", "SimSun", serif`
-						const timeText = this.formData.time.hour + ':' + this.formData.time.minute
-					const timeWidth = ctx.measureText ? ctx.measureText(timeText).width : 140
-						
-					const timeInnerPadding = 15 * scale
-						const textStartX = edgePadding + timeInnerPadding + timeWidth + timeInnerPadding
-						
-						// 准备右侧文本
-					const smallFontSize = 30 // 姓名、日期、定位字体 30px
-						ctx.setFontSize(smallFontSize)
-						ctx.font = `${smallFontSize}px "Noto Serif CJK SC", "思源宋体", "SimSun", serif`
-						const nameText = this.formData.name
-						const dateText = this.formatDate(this.formData.date)
-						const nameWidth = ctx.measureText ? ctx.measureText(nameText).width : 80 * scale
-						const dateWidth = ctx.measureText ? ctx.measureText(dateText).width : 180 * scale
-						const rightContentWidth = Math.max(nameWidth, dateWidth)
-						
-					const infoBoxHeight = 106 // 固定高度 106px
-					const infoBoxWidth = 469 // 固定宽度 475px（原469px + 6px）
-						const infoBoxX = edgePadding
 					
-					// 【位置修改处】：定位框距离底边63px，信息框与定位框间距14px
-					const locBoxHeight = 62 // 定位框高度
-					const bottomMargin = 63 // 定位框距离底边的距离
-					const boxGap = 14 // 信息框与定位框之间的距离
-				const infoBoxY = targetHeight - bottomMargin - locBoxHeight - boxGap - infoBoxHeight
-						
-						this.drawRoundedRect(ctx, infoBoxX, infoBoxY, infoBoxWidth, infoBoxHeight, borderRadius, bgColor)
-						
-					// 绘制时间（垂直居中，向左9px，向下5px）
-						ctx.setFillStyle(textColor)
-						ctx.setFontSize(timeFontSize)
-						ctx.setTextAlign('left')
-					// 106px 高度，时间垂直居中
-					const timeY = infoBoxY + (infoBoxHeight + timeFontSize) / 2 - 10 + 5 // 向下5px
-					ctx.fillText(timeText, infoBoxX + timeInnerPadding, timeY) // 向左0px
-						
-					// 绘制姓名和日期（三个间距保持一致）
-						ctx.setFontSize(smallFontSize)
-					// 框高106px，两行文字（30px），三个间距相等
-					// 计算：(106 - 60) / 3 ≈ 15.33px
-					// 姓名：上边距15.33px + baseline偏移24px ≈ 39px
-					const nameY = infoBoxY + 43
-					// 日期：15.33px + 30px + 15.33px + 24px ≈ 85px
-					const dateY = infoBoxY + 89
-					ctx.fillText(nameText, textStartX, nameY)
-					ctx.fillText(dateText, textStartX, dateY)
-						
-				// 2. 绘制下方定位块（使用相同的圆角和左边距，宽度自适应）
-				// locBoxHeight 已在上方定义为 62
-				const locBoxY = targetHeight - bottomMargin - locBoxHeight // 【位置修改处】：距离底边63px
-						const location = 'Q贵阳首钢贵州之光一期'
-						
-						ctx.setFontSize(smallFontSize)
-					const locTextWidth = ctx.measureText ? ctx.measureText(location).width : 250
-					const locIconSpace = 62 // 定位图标和间距占用（图标24px + 间距38px = 62px）
-					const locBoxWidth = locIconSpace + locTextWidth + 20 // 文字右边距离右边框 20px
-					const locBoxX = edgePadding // 使用相同的左边距 21px
+					// 绘制水印（复用原有逻辑）
+					this.drawWatermarkContent(ctx, targetWidth, targetHeight, scale)
 					
-					this.drawRoundedRect(ctx, locBoxX, locBoxY, locBoxWidth, locBoxHeight, borderRadius, bgColor)
-					
-			// 绘制定位图标（原生像素加载PNG，保留透明通道）
-			const iconX = locBoxX + 20 // 距离定位框左边缘 20px（往右2px）
-			const iconY = locBoxY + 17 // 距离定位框顶部 17px（往上2px）
-				
-				// 以原生像素加载PNG图标，不缩放
-				ctx.drawImage(
-					'/static/images/location-pin.png',
-					iconX,
-					iconY
-				)
-						
-					// 绘制定位文字（垂直居中）
-						ctx.setFillStyle('#ffffff')
-					ctx.setFontSize(smallFontSize) // 确保使用 30px 字体
-					const locTextY = locBoxY + (locBoxHeight + smallFontSize) / 2 - 4
-					ctx.fillText(location, locBoxX + 62, locTextY) // 图标宽度24 + 间距38 = 62px
-						
-						// 3. 绘制右下角二维码
-						try {
-							// 动态生成加密的二维码文本
-							const qrCodeText = this.generateQRCodeText()
-							if (!qrCodeText) {
-								throw new Error('无法生成二维码文本')
-							}
-							
-							// 生成二维码数据
-							const qrData = QRCode.create(qrCodeText, {
-								errorCorrectionLevel: 'L'
-							})
-							
-							const modules = qrData.modules.data
-							const mCount = qrData.modules.size
-							
-							// 按用户要求设置参数
-							const qrSize = 258
-							const margin = 6
-							const contentSize = qrSize - margin * 2
-							const moduleSize = contentSize / mCount
-							
-							const qrX = targetWidth - qrSize
-							const qrY = targetHeight - qrSize
-							
-							// 1. 绘制白色背景
-							ctx.setFillStyle('#ffffff')
-							ctx.fillRect(qrX, qrY, qrSize, qrSize)
-							
-							// 2. 绘制黑色模块
-							ctx.setFillStyle('#000000')
-							let rectCount = 0
-							
-							for (let row = 0; row < mCount; row++) {
-								for (let col = 0; col < mCount; col++) {
-									const index = row * mCount + col
-									if (modules[index]) {
-										const x1 = Math.floor(qrX + margin + col * moduleSize)
-										const y1 = Math.floor(qrY + margin + row * moduleSize)
-										const x2 = Math.floor(qrX + margin + (col + 1) * moduleSize)
-										const y2 = Math.floor(qrY + margin + (row + 1) * moduleSize)
-										const w = x2 - x1
-										const h = y2 - y1
-										
-										if (w > 0 && h > 0) {
-											ctx.fillRect(x1, y1, w, h)
-											rectCount++
-										}
-									}
-								}
-							}
-							
-					} catch (qrErr) {
-						// 在二维码位置绘制错误提示
-						const qrSize = 258
-						const qrX = targetWidth - qrSize
-						const qrY = targetHeight - qrSize
-						
-						ctx.setFillStyle('#ffffff')
-						ctx.fillRect(qrX, qrY, qrSize, qrSize)
-						
-						ctx.setFillStyle('#ff0000')
-						ctx.setFontSize(18)
-						ctx.setTextAlign('center')
-						ctx.fillText('二维码生成失败', qrX + qrSize / 2, qrY + qrSize / 2)
-						
-						uni.showToast({
-							title: '二维码生成失败',
-							icon: 'none',
-							duration: 2000
-						})
-					}
-					
-					// 统一绘制所有内容到画布
 					ctx.draw(false, () => {
-						// 【关键】在不同平台使用不同的延迟时间，确保绘制完成
-						// H5 环境较快，APP 环境需要更多时间
 						let delay = 500
 						// #ifdef APP-PLUS
 						delay = 800
@@ -600,7 +528,6 @@ export default {
 						delay = 300
 						// #endif
 						
-						// 将canvas转为图片（jpg格式）
 						setTimeout(() => {
 							uni.canvasToTempFilePath({
 								canvasId: 'watermarkCanvas',
@@ -608,23 +535,372 @@ export default {
 								height: targetHeight,
 								destWidth: targetWidth,
 								destHeight: targetHeight,
-								fileType: 'jpg', // 指定输出为jpg格式
-								quality: 0.9,    // 图片质量（0-1，默认0.9）
-									success: (res) => {
-										// 处理EXIF数据
-										this.processImageWithExif(res.tempFilePath)
-									},
-								fail: (err) => {
-									uni.hideLoading()
-									uni.showToast({
-										title: '生成失败',
-										icon: 'none'
-									})
+								fileType: 'jpg',
+								quality: 0.9,
+								success: (res) => {
+									this.processImageWithExifForBatch(res.tempFilePath, callback, isLast)
+								},
+								fail: () => {
+									callback()
 								}
 							}, this)
 						}, delay)
 					})
-					}) // 关闭 $nextTick 回调
+				})
+			},
+			fail: () => {
+				callback()
+			}
+		})
+	},
+	
+	// 绘制水印内容（提取公共逻辑）
+	drawWatermarkContent(ctx, targetWidth, targetHeight, scale) {
+		const edgePadding = 21
+		const borderRadius = 16
+		const bgColor = 'rgba(0, 0, 0, 0.3)'
+		const textColor = '#ffffff'
+		
+		const timeFontSize = 74
+		ctx.setFontSize(timeFontSize)
+		ctx.font = `200 ${timeFontSize}px "Noto Serif CJK SC", "思源宋体", "SimSun", serif`
+		const timeText = this.formData.time.hour + ':' + this.formData.time.minute
+		const timeWidth = ctx.measureText ? ctx.measureText(timeText).width : 140
+		
+		const timeInnerPadding = 15 * scale
+		const textStartX = edgePadding + timeInnerPadding + timeWidth + timeInnerPadding
+		
+		const smallFontSize = 30
+		ctx.setFontSize(smallFontSize)
+		ctx.font = `${smallFontSize}px "Noto Serif CJK SC", "思源宋体", "SimSun", serif`
+		const nameText = this.formData.name
+		const dateText = this.formatDate(this.formData.date)
+		const nameWidth = ctx.measureText ? ctx.measureText(nameText).width : 80 * scale
+		const dateWidth = ctx.measureText ? ctx.measureText(dateText).width : 180 * scale
+		
+		const infoBoxHeight = 106
+		const infoBoxWidth = 469
+		const infoBoxX = edgePadding
+		
+		const locBoxHeight = 62
+		const bottomMargin = 63
+		const boxGap = 14
+		const infoBoxY = targetHeight - bottomMargin - locBoxHeight - boxGap - infoBoxHeight
+		
+		this.drawRoundedRect(ctx, infoBoxX, infoBoxY, infoBoxWidth, infoBoxHeight, borderRadius, bgColor)
+		
+		ctx.setFillStyle(textColor)
+		ctx.setFontSize(timeFontSize)
+		ctx.setTextAlign('left')
+		const timeY = infoBoxY + (infoBoxHeight + timeFontSize) / 2 - 10 + 5
+		ctx.fillText(timeText, infoBoxX + timeInnerPadding, timeY)
+		
+		ctx.setFontSize(smallFontSize)
+		const nameY = infoBoxY + 43
+		const dateY = infoBoxY + 89
+		ctx.fillText(nameText, textStartX, nameY)
+		ctx.fillText(dateText, textStartX, dateY)
+		
+		const locBoxY = targetHeight - bottomMargin - locBoxHeight
+		const location = 'Q贵阳首钢贵州之光一期'
+		
+		ctx.setFontSize(smallFontSize)
+		const locTextWidth = ctx.measureText ? ctx.measureText(location).width : 250
+		const locIconSpace = 62
+		const locBoxWidth = locIconSpace + locTextWidth + 20
+		const locBoxX = edgePadding
+		
+		this.drawRoundedRect(ctx, locBoxX, locBoxY, locBoxWidth, locBoxHeight, borderRadius, bgColor)
+		
+		const iconX = locBoxX + 20
+		const iconY = locBoxY + 17
+		
+		ctx.drawImage('/static/images/location-pin.png', iconX, iconY)
+		
+		ctx.setFillStyle('#ffffff')
+		ctx.setFontSize(smallFontSize)
+		const locTextY = locBoxY + (locBoxHeight + smallFontSize) / 2 - 4
+		ctx.fillText(location, locBoxX + 62, locTextY)
+		
+		try {
+			const qrCodeText = this.generateQRCodeText()
+			if (qrCodeText) {
+				const qrData = QRCode.create(qrCodeText, { errorCorrectionLevel: 'L' })
+				const modules = qrData.modules.data
+				const mCount = qrData.modules.size
+				const qrSize = 258
+				const margin = 6
+				const contentSize = qrSize - margin * 2
+				const moduleSize = contentSize / mCount
+				const qrX = targetWidth - qrSize
+				const qrY = targetHeight - qrSize
+				
+				ctx.setFillStyle('#ffffff')
+				ctx.fillRect(qrX, qrY, qrSize, qrSize)
+				
+				ctx.setFillStyle('#000000')
+				for (let row = 0; row < mCount; row++) {
+					for (let col = 0; col < mCount; col++) {
+						const index = row * mCount + col
+						if (modules[index]) {
+							const x1 = Math.floor(qrX + margin + col * moduleSize)
+							const y1 = Math.floor(qrY + margin + row * moduleSize)
+							const x2 = Math.floor(qrX + margin + (col + 1) * moduleSize)
+							const y2 = Math.floor(qrY + margin + (row + 1) * moduleSize)
+							const w = x2 - x1
+							const h = y2 - y1
+							if (w > 0 && h > 0) {
+								ctx.fillRect(x1, y1, w, h)
+							}
+						}
+					}
+				}
+			}
+		} catch (qrErr) {
+			console.error('二维码生成失败', qrErr)
+		}
+	},
+	
+	// 批量处理EXIF
+	processImageWithExifForBatch(tempFilePath, callback, isLast) {
+		// #ifdef H5
+		if (tempFilePath.startsWith('data:image')) {
+			try {
+				const base64WithExif = this.addExifToImage(tempFilePath)
+				this.saveImageForBatch(base64WithExif, callback, isLast)
+			} catch (err) {
+				this.saveImageForBatch(tempFilePath, callback, isLast)
+			}
+		} else {
+			fetch(tempFilePath)
+				.then(res => res.blob())
+				.then(blob => {
+					const reader = new FileReader()
+					reader.onload = (e) => {
+						try {
+							const base64 = e.target.result
+							const base64WithExif = this.addExifToImage(base64)
+							this.saveImageForBatch(base64WithExif, callback, isLast)
+						} catch (err) {
+							this.saveImageForBatch(tempFilePath, callback, isLast)
+						}
+					}
+					reader.readAsDataURL(blob)
+				})
+				.catch(() => {
+					this.saveImageForBatch(tempFilePath, callback, isLast)
+				})
+		}
+		// #endif
+		
+		// #ifndef H5
+		plus.io.resolveLocalFileSystemURL(tempFilePath, (entry) => {
+			entry.file((file) => {
+				const reader = new plus.io.FileReader()
+				reader.onloadend = (e) => {
+					try {
+						const base64 = e.target.result
+						const base64WithExif = this.addExifToImage(base64)
+						const newFileName = '_temp_exif_' + Date.now() + '.jpg'
+						const newFilePath = entry.filesystem.root.toLocalURL() + newFileName
+						const base64Data = base64WithExif.split(',')[1]
+						const byteCharacters = atob(base64Data)
+						const byteNumbers = new Array(byteCharacters.length)
+						for (let i = 0; i < byteCharacters.length; i++) {
+							byteNumbers[i] = byteCharacters.charCodeAt(i)
+						}
+						const byteArray = new Uint8Array(byteNumbers)
+						entry.filesystem.root.getFile(newFileName, { create: true }, (newEntry) => {
+							newEntry.createWriter((writer) => {
+								writer.onwrite = () => {
+									this.saveImageForBatch(newEntry.toLocalURL(), callback, isLast)
+								}
+								writer.onerror = () => {
+									this.saveImageForBatch(tempFilePath, callback, isLast)
+								}
+								writer.write(byteArray.buffer)
+							})
+						})
+					} catch (err) {
+						this.saveImageForBatch(tempFilePath, callback, isLast)
+					}
+				}
+				reader.readAsDataURL(file)
+			})
+		}, () => {
+			this.saveImageForBatch(tempFilePath, callback, isLast)
+		})
+		// #endif
+	},
+	
+	// 批量保存图片
+	saveImageForBatch(imageData, callback, isLast) {
+		// #ifdef H5
+		try {
+			const fileName = this.generateTimestampFileName()
+			const link = document.createElement('a')
+			link.href = imageData
+			link.download = fileName
+			document.body.appendChild(link)
+			link.click()
+			document.body.removeChild(link)
+		} catch (e) {
+			console.error('保存失败', e)
+		}
+		// #endif
+		
+		// #ifndef H5
+		this.checkStoragePermissionAndSaveForBatch(imageData, callback, isLast)
+		// #endif
+		
+		if (isLast) {
+			uni.hideLoading()
+			uni.showToast({
+				title: '全部生成完成',
+				icon: 'success'
+			})
+		}
+		callback()
+	},
+	
+	// #ifndef H5
+	checkStoragePermissionAndSaveForBatch(imageData, callback, isLast) {
+		const main = plus.android.runtimeMainActivity()
+		const Build = plus.android.importClass('android.os.Build')
+		const sdkInt = Build.VERSION.SDK_INT
+		
+		if (sdkInt >= 30) {
+			const Environment = plus.android.importClass('android.os.Environment')
+			if (!Environment.isExternalStorageManager()) {
+				if (isLast) {
+					uni.hideLoading()
+					uni.showModal({
+						title: '需要授予权限',
+						content: '保存到自定义目录需要"所有文件访问权限"',
+						confirmText: '去设置',
+						cancelText: '取消',
+						success: (res) => {
+							if (res.confirm) {
+								this.openAllFilesAccessSetting()
+							}
+						}
+					})
+				}
+				callback()
+				return
+			}
+		} else {
+			const result = plus.android.checkPermission('android.permission.WRITE_EXTERNAL_STORAGE')
+			if (result === -1) {
+				if (isLast) {
+					uni.hideLoading()
+					uni.showToast({
+						title: '未授予存储权限',
+						icon: 'none'
+					})
+				}
+				callback()
+				return
+			}
+		}
+		
+		this.saveImageToCustomPathForBatch(imageData, callback, isLast)
+	},
+	
+	saveImageToCustomPathForBatch(imageData, callback, isLast) {
+		const fileName = this.generateTimestampFileName()
+		const targetDir = '/storage/emulated/0/lebang/waterimages/'
+		
+		plus.io.resolveLocalFileSystemURL(targetDir, 
+			(dirEntry) => {
+				this.copyFileToTargetForBatch(imageData, dirEntry, fileName, callback, isLast)
+			},
+			() => {
+				plus.io.resolveLocalFileSystemURL('/storage/emulated/0/', (rootEntry) => {
+					rootEntry.getDirectory('lebang', { create: true }, (lebangDir) => {
+						lebangDir.getDirectory('waterimages', { create: true }, (waterDir) => {
+							this.copyFileToTargetForBatch(imageData, waterDir, fileName, callback, isLast)
+						}, () => {
+							callback()
+						})
+					}, () => {
+						callback()
+					})
+				}, () => {
+					callback()
+				})
+			}
+		)
+	},
+	
+	copyFileToTargetForBatch(imageData, targetDirEntry, fileName, callback, isLast) {
+		plus.io.resolveLocalFileSystemURL(imageData, (sourceEntry) => {
+			this.findAvailableFileName(targetDirEntry, fileName, (finalFileName) => {
+				sourceEntry.copyTo(targetDirEntry, finalFileName,
+					(newEntry) => {
+						this.scanMediaFile(newEntry.fullPath, () => {
+							callback()
+						})
+					},
+					() => {
+						callback()
+					}
+				)
+			})
+		}, () => {
+			callback()
+		})
+	},
+	// #endif
+		drawWatermark() {
+			uni.getImageInfo({
+				src: this.imagePath,
+				success: (imageInfo) => {
+					const targetWidth = 1080
+					const targetHeight = (imageInfo.height / imageInfo.width) * targetWidth
+					
+					this.canvasWidth = targetWidth
+					this.canvasHeight = targetHeight
+					
+					this.$nextTick(() => {
+						const ctx = uni.createCanvasContext('watermarkCanvas', this)
+						const scale = targetWidth / 750
+						
+						ctx.drawImage(this.imagePath, 0, 0, targetWidth, targetHeight)
+						this.drawWatermarkContent(ctx, targetWidth, targetHeight, scale)
+						
+						ctx.draw(false, () => {
+							let delay = 500
+							// #ifdef APP-PLUS
+							delay = 800
+							// #endif
+							// #ifdef H5
+							delay = 300
+							// #endif
+							
+							setTimeout(() => {
+								uni.canvasToTempFilePath({
+									canvasId: 'watermarkCanvas',
+									width: targetWidth,
+									height: targetHeight,
+									destWidth: targetWidth,
+									destHeight: targetHeight,
+									fileType: 'jpg',
+									quality: 0.9,
+									success: (res) => {
+										this.processImageWithExif(res.tempFilePath)
+									},
+									fail: (err) => {
+										uni.hideLoading()
+										uni.showToast({
+											title: '生成失败',
+											icon: 'none'
+										})
+									}
+								}, this)
+							}, delay)
+						})
+					})
 				},
 				fail: () => {
 					uni.hideLoading()
@@ -1549,6 +1825,20 @@ export default {
 	width: 100%;
 	max-height: 500rpx;
 	border-radius: 16rpx;
+}
+
+.images-preview {
+	background: white;
+	border-radius: 24rpx;
+	padding: 20rpx;
+	box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.08);
+}
+
+.images-count {
+	font-size: 28rpx;
+	color: #333;
+	text-align: center;
+	padding: 40rpx 0;
 }
 
 .image-actions {
