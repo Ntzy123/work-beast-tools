@@ -489,12 +489,11 @@ export default {
 		
 		uni.showLoading({ title: `生成中 0/${totalCount}` })
 		
-		// 按顺序生成：图片1×3, 图片2×3, 图片3×3...
+		// 按顺序生成：图1,图2,图3,图1,图2,图3...
 		let currentIndex = 0
-		for (let imgIdx = 0; imgIdx < imageCount; imgIdx++) {
-			const sourceImage = sourceImages[imgIdx]
-			
-			for (let repeatIdx = 0; repeatIdx < repeatCount; repeatIdx++) {
+		for (let repeatIdx = 0; repeatIdx < repeatCount; repeatIdx++) {
+			for (let imgIdx = 0; imgIdx < imageCount; imgIdx++) {
+				const sourceImage = sourceImages[imgIdx]
 				const timeOffset = timeSlots[currentIndex]
 				
 				const baseTime = new Date(`${this.formData.date} ${this.formData.time.hour}:${this.formData.time.minute}:${String(this.formData.time.second).padStart(2, '0')}`)
@@ -2015,7 +2014,9 @@ export default {
 	font-size: 28rpx;
 	color: #333;
 	font-weight: 500;
-	margin-top: 10rpx;
+	padding: 0;
+	margin: 0;
+	line-height: 1.4;
 }
 
 /* 生成按钮 */
