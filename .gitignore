@@ -13,6 +13,7 @@ dist
 *.local
 
 # Static images (generated from SVG, not version controlled)
+src/static/*
 src/static/images/*.png
 src/static/images/*.jpg
 src/static/images/*.jpeg

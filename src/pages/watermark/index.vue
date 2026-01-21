@@ -647,7 +647,7 @@ export default {
 		
 		const timeFontSize = 74
 		ctx.setFontSize(timeFontSize)
-		ctx.font = `200 ${timeFontSize}px "Noto Serif CJK SC", "思源宋体", "SimSun", serif`
+		ctx.font = `200 ${timeFontSize}px "SourceHanSerifCN", "Source Han Serif SC", "Noto Serif CJK SC", "思源宋体", "SimSun", serif`
 		const timeText = this.formData.time.hour + ':' + this.formData.time.minute
 		const timeWidth = ctx.measureText ? ctx.measureText(timeText).width : 140
 		
@@ -656,7 +656,7 @@ export default {
 		
 		const smallFontSize = 30
 		ctx.setFontSize(smallFontSize)
-		ctx.font = `${smallFontSize}px "Noto Serif CJK SC", "思源宋体", "SimSun", serif`
+		ctx.font = `${smallFontSize}px "SourceHanSerifCN", "Source Han Serif SC", "Noto Serif CJK SC", "思源宋体", "SimSun", serif`
 		const nameText = this.formData.name
 		const dateText = this.formatDate(this.formData.date)
 		const nameWidth = ctx.measureText ? ctx.measureText(nameText).width : 80 * scale
@@ -1841,6 +1841,15 @@ export default {
 </script>
 
 <style lang="scss" scoped>
+/* 导入自定义字体 */
+@font-face {
+	font-family: 'SourceHanSerifCN';
+	src: url('@/static/fonts/SourceHanSerifCN-Regular.ttf') format('truetype');
+	font-weight: normal;
+	font-style: normal;
+	font-display: swap;
+}
+
 .page {
 	min-height: 100vh;
 	background: linear-gradient(180deg, #f5f7fa 0%, #c3cfe2 100%);
