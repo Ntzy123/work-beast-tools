@@ -146,7 +146,7 @@ export default {
 			encryptionKey: 'e373d090928170eb', // 默认加密key
 			utilityApps: [
 				{ icon: '🖼️', name: '添加水印', desc: '图片水印工具', path: 'pages/watermark/index' },
-				{ icon: '🌙', name: '自动夜答', desc: '自动夜答管理网站', url: 'http://aec.niyuki.icu' },
+				{ icon: '🌙', name: '自动夜答', desc: '自动夜答管理网站', url: 'http://aec.kyrian.asia' },
 				{ icon: '⏳', name: '敬请期待', desc: '功能开发中', disabled: true },
 				{ icon: '⏳', name: '敬请期待', desc: '功能开发中', disabled: true }
 			]
