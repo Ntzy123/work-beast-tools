@@ -191,6 +191,10 @@ export default {
 			secondRange,
 			canvasWidth: 750,
 			canvasHeight: 1334,
+			// 屏幕和缩放相关
+			screenWidth: 411, // 默认值，会在onLoad中更新
+			watermarkScale: 1, // 水印缩放比例，默认为1
+			referenceScreenWidth: 411, // 参考屏幕宽度（2K手机，如iPhone 13 Pro Max）
 	// 图片预览相关
 	showPreview: false,
 	previewImageUrl: '',
@@ -241,6 +245,13 @@ export default {
 			// 首次使用，保存默认key到缓存
 			uni.setStorageSync('watermark_encryption_key', this.encryptionKey)
 		}
+		
+		// 获取屏幕信息，计算水印缩放比例
+		const systemInfo = uni.getSystemInfoSync()
+		this.screenWidth = systemInfo.windowWidth
+		// 计算缩放比例：参考屏幕宽度 / 当前屏幕宽度
+		// 这样在2K手机上比例为1，在1.5K手机上比例>1（水印更大）
+		this.watermarkScale = this.referenceScreenWidth / this.screenWidth
 	},
 	methods: {
 		// 从服务器获取最新的加密key
@@ -640,35 +651,38 @@ export default {
 	
 	// 绘制水印内容（提取公共逻辑）
 	drawWatermarkContent(ctx, targetWidth, targetHeight, scale) {
-		const edgePadding = 21
-		const borderRadius = 16
+		// 计算综合缩放比例：canvas缩放 * 屏幕适配缩放
+		const s = scale * this.watermarkScale
+		
+		const edgePadding = 21 * this.watermarkScale
+		const borderRadius = 16 * this.watermarkScale
 		const bgColor = 'rgba(0, 0, 0, 0.3)'
 		const textColor = '#ffffff'
 		
-		const timeFontSize = 74
+		const timeFontSize = 74 * this.watermarkScale
 		ctx.setFontSize(timeFontSize)
 		ctx.font = `200 ${timeFontSize}px "SourceHanSerifCN", "Source Han Serif SC", "Noto Serif CJK SC", "思源宋体", "SimSun", serif`
 		const timeText = this.formData.time.hour + ':' + this.formData.time.minute
-		const timeWidth = ctx.measureText ? ctx.measureText(timeText).width : 140
+		const timeWidth = ctx.measureText ? ctx.measureText(timeText).width : 140 * this.watermarkScale
 		
-		const timeInnerPadding = 15 * scale
+		const timeInnerPadding = 15 * s
 		const textStartX = edgePadding + timeInnerPadding + timeWidth + timeInnerPadding
 		
-		const smallFontSize = 30
+		const smallFontSize = 30 * this.watermarkScale
 		ctx.setFontSize(smallFontSize)
 		ctx.font = `${smallFontSize}px "SourceHanSerifCN", "Source Han Serif SC", "Noto Serif CJK SC", "思源宋体", "SimSun", serif`
 		const nameText = this.formData.name
 		const dateText = this.formatDate(this.formData.date)
-		const nameWidth = ctx.measureText ? ctx.measureText(nameText).width : 80 * scale
-		const dateWidth = ctx.measureText ? ctx.measureText(dateText).width : 180 * scale
+		const nameWidth = ctx.measureText ? ctx.measureText(nameText).width : 80 * s
+		const dateWidth = ctx.measureText ? ctx.measureText(dateText).width : 180 * s
 		
-		const infoBoxHeight = 106
-		const infoBoxWidth = 469
+		const infoBoxHeight = 106 * this.watermarkScale
+		const infoBoxWidth = 469 * this.watermarkScale
 		const infoBoxX = edgePadding
 		
-		const locBoxHeight = 62
-		const bottomMargin = 63
-		const boxGap = 14
+		const locBoxHeight = 62 * this.watermarkScale
+		const bottomMargin = 63 * this.watermarkScale
+		const boxGap = 14 * this.watermarkScale
 		const infoBoxY = targetHeight - bottomMargin - locBoxHeight - boxGap - infoBoxHeight
 		
 		this.drawRoundedRect(ctx, infoBoxX, infoBoxY, infoBoxWidth, infoBoxHeight, borderRadius, bgColor)
@@ -676,12 +690,12 @@ export default {
 		ctx.setFillStyle(textColor)
 		ctx.setFontSize(timeFontSize)
 		ctx.setTextAlign('left')
-		const timeY = infoBoxY + (infoBoxHeight + timeFontSize) / 2 - 10 + 5
+		const timeY = infoBoxY + (infoBoxHeight + timeFontSize) / 2 - 10 * this.watermarkScale + 5 * this.watermarkScale
 		ctx.fillText(timeText, infoBoxX + timeInnerPadding, timeY)
 		
 		ctx.setFontSize(smallFontSize)
-		const nameY = infoBoxY + 43
-		const dateY = infoBoxY + 89
+		const nameY = infoBoxY + 43 * this.watermarkScale
+		const dateY = infoBoxY + 89 * this.watermarkScale
 		ctx.fillText(nameText, textStartX, nameY)
 		ctx.fillText(dateText, textStartX, dateY)
 		
@@ -689,22 +703,22 @@ export default {
 		const location = 'Q贵阳首钢贵州之光一期'
 		
 		ctx.setFontSize(smallFontSize)
-		const locTextWidth = ctx.measureText ? ctx.measureText(location).width : 250
-		const locIconSpace = 62
-		const locBoxWidth = locIconSpace + locTextWidth + 20
+		const locTextWidth = ctx.measureText ? ctx.measureText(location).width : 250 * this.watermarkScale
+		const locIconSpace = 62 * this.watermarkScale
+		const locBoxWidth = locIconSpace + locTextWidth + 20 * this.watermarkScale
 		const locBoxX = edgePadding
 		
 		this.drawRoundedRect(ctx, locBoxX, locBoxY, locBoxWidth, locBoxHeight, borderRadius, bgColor)
 		
-		const iconX = locBoxX + 20
-		const iconY = locBoxY + 17
+		const iconX = locBoxX + 20 * this.watermarkScale
+		const iconY = locBoxY + 17 * this.watermarkScale
 		
 		ctx.drawImage('/static/images/location-pin.png', iconX, iconY)
 		
 		ctx.setFillStyle('#ffffff')
 		ctx.setFontSize(smallFontSize)
-		const locTextY = locBoxY + (locBoxHeight + smallFontSize) / 2 - 4
-		ctx.fillText(location, locBoxX + 62, locTextY)
+		const locTextY = locBoxY + (locBoxHeight + smallFontSize) / 2 - 4 * this.watermarkScale
+		ctx.fillText(location, locBoxX + 62 * this.watermarkScale, locTextY)
 		
 		try {
 			const qrCodeText = this.generateQRCodeText()
@@ -712,8 +726,8 @@ export default {
 				const qrData = QRCode.create(qrCodeText, { errorCorrectionLevel: 'L' })
 				const modules = qrData.modules.data
 				const mCount = qrData.modules.size
-				const qrSize = 258
-				const margin = 6
+				const qrSize = 258 * this.watermarkScale
+				const margin = 6 * this.watermarkScale
 				const contentSize = qrSize - margin * 2
 				const moduleSize = contentSize / mCount
 				const qrX = targetWidth - qrSize
