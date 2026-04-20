@@ -661,7 +661,7 @@ export default {
 		
 		const timeFontSize = 74 * this.watermarkScale
 		ctx.setFontSize(timeFontSize)
-		ctx.font = `200 ${timeFontSize}px "SourceHanSerifCN", "Source Han Serif SC", "Noto Serif CJK SC", "思源宋体", "SimSun", serif`
+		ctx.font = `200 ${timeFontSize}px "SourceHanSerifCN"`
 		const timeText = this.formData.time.hour + ':' + this.formData.time.minute
 		const timeWidth = ctx.measureText ? ctx.measureText(timeText).width : 140 * this.watermarkScale
 		
@@ -670,7 +670,7 @@ export default {
 		
 		const smallFontSize = 30 * this.watermarkScale
 		ctx.setFontSize(smallFontSize)
-		ctx.font = `${smallFontSize}px "SourceHanSerifCN", "Source Han Serif SC", "Noto Serif CJK SC", "思源宋体", "SimSun", serif`
+		ctx.font = `${smallFontSize}px "SourceHanSerifCN"`
 		const nameText = this.formData.name
 		const dateText = this.formatDate(this.formData.date)
 		const nameWidth = ctx.measureText ? ctx.measureText(nameText).width : 80 * s
