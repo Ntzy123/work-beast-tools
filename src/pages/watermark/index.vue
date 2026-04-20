@@ -191,6 +191,8 @@ export default {
 			secondRange,
 			canvasWidth: 750,
 			canvasHeight: 1334,
+			// 字体预热状态（用于 Android 端）
+			fontReady: false,
 			// 屏幕和缩放相关
 			screenWidth: 411, // 默认值，会在onLoad中更新
 			watermarkScale: 1, // 水印缩放比例，默认为1
@@ -252,8 +254,59 @@ export default {
 		// 计算缩放比例：参考屏幕宽度 / 当前屏幕宽度
 		// 这样在2K手机上比例为1，在1.5K手机上比例>1（水印更大）
 		this.watermarkScale = this.referenceScreenWidth / this.screenWidth
+		
+		// 预热 Canvas（Android 端专用，强制加载字体）
+		this.warmupCanvas()
 	},
 	methods: {
+		// ===== Android 端字体预热 =====
+		
+		// 预热 Canvas，强制 Android WebView 加载字体
+		warmupCanvas() {
+			// #ifdef APP-PLUS
+			// 创建隐藏的 canvas 预热
+			this.$nextTick(() => {
+				const ctx = uni.createCanvasContext('watermarkCanvas', this)
+				ctx.setFontSize(20)
+				ctx.font = '20px "SourceHanSerifCN"'
+				ctx.fillText('预热字体', 0, 30)
+				ctx.draw(false, () => {
+					// 预热完成
+					setTimeout(() => {
+						this.fontReady = true
+						console.log('Canvas 预热完成，字体已加载')
+					}, 500)
+				})
+			})
+			// #endif
+			
+			// #ifndef APP-PLUS
+			// 非 App 端直接标记就绪
+			this.fontReady = true
+			// #endif
+		},
+		
+		// 等待字体准备就绪
+		async waitForFont() {
+			// 如果已经就绪，直接返回
+			if (this.fontReady) {
+				return
+			}
+			
+			// 等待最多 3 秒
+			const maxWait = 3000
+			const startTime = Date.now()
+			
+			while (!this.fontReady && (Date.now() - startTime < maxWait)) {
+				await new Promise(resolve => setTimeout(resolve, 200))
+			}
+			
+			// 额外等待一段时间确保字体渲染完成
+			await new Promise(resolve => setTimeout(resolve, 300))
+		},
+		
+		// ===== 原有方法 =====
+		
 		// 从服务器获取最新的加密key
 		async fetchKeyFromServer() {
 			try {
@@ -595,7 +648,10 @@ export default {
 	},
 	
 	// 为批量处理绘制单张水印
-	drawWatermarkForBatch(callback, isLast) {
+	async drawWatermarkForBatch(callback, isLast) {
+		// 等待字体加载
+		await this.waitForFont()
+		
 		uni.getImageInfo({
 			src: this.imagePath,
 			success: (imageInfo) => {
@@ -950,7 +1006,10 @@ export default {
 		})
 	},
 	// #endif
-		drawWatermark() {
+		async drawWatermark() {
+			// 等待字体加载
+			await this.waitForFont()
+			
 			uni.getImageInfo({
 				src: this.imagePath,
 				success: (imageInfo) => {
