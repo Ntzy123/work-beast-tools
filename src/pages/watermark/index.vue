@@ -724,7 +724,7 @@ export default {
 		// (如 "17:52" vs "09:07") 返回的宽度精度不一致，导致姓名/日期与时间间距异常
 		// 使用固定的时间列宽度，确保任意 "HH:MM" 都有足够空间，间距始终一致
 		const timeInnerPadding = 15 * ws
-		const timeColumnWidth = 215 * ws
+		const timeColumnWidth = 223 * ws
 		const textStartX = edgePadding + timeColumnWidth
 		
 		const smallFontSize = 30 * ws
@@ -733,8 +733,10 @@ export default {
 		const nameText = this.formData.name
 		const dateText = this.formatDate(this.formData.date)
 		
+		const dateTextWidth = ctx.measureText ? ctx.measureText(dateText).width : 180 * ws
+		const nameTextWidth = ctx.measureText ? ctx.measureText(nameText).width : 150 * ws
 		const infoBoxHeight = 106 * ws
-		const infoBoxWidth = 469 * ws
+		const infoBoxWidth = timeColumnWidth + Math.max(nameTextWidth, dateTextWidth) + 12 * ws
 		const infoBoxX = edgePadding
 		
 		const locBoxHeight = 62 * this.watermarkScale
