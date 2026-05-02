@@ -707,33 +707,34 @@ export default {
 	
 	// 绘制水印内容（提取公共逻辑）
 	drawWatermarkContent(ctx, targetWidth, targetHeight, scale) {
-		// 计算综合缩放比例：canvas缩放 * 屏幕适配缩放
-		const s = scale * this.watermarkScale
+		// 使用 waterMarkScale 作为统一缩放因子（所有布局值基于此缩放）
+		const ws = this.watermarkScale
 		
-		const edgePadding = 21 * this.watermarkScale
-		const borderRadius = 16 * this.watermarkScale
+		const edgePadding = 21 * ws
+		const borderRadius = 16 * ws
 		const bgColor = 'rgba(0, 0, 0, 0.3)'
 		const textColor = '#ffffff'
 		
-		const timeFontSize = 74 * this.watermarkScale
+		const timeFontSize = 74 * ws
 		ctx.setFontSize(timeFontSize)
 		ctx.font = `200 ${timeFontSize}px "SourceHanSerifCN"`
 		const timeText = this.formData.time.hour + ':' + this.formData.time.minute
-		const timeWidth = ctx.measureText ? ctx.measureText(timeText).width : 140 * this.watermarkScale
 		
-		const timeInnerPadding = 15 * s
-		const textStartX = edgePadding + timeInnerPadding + timeWidth + timeInnerPadding
+		// 不依赖 measureText 计算布局：uni-app canvas 的 measureText 对不同数字组合
+		// (如 "17:52" vs "09:07") 返回的宽度精度不一致，导致姓名/日期与时间间距异常
+		// 使用固定的时间列宽度，确保任意 "HH:MM" 都有足够空间，间距始终一致
+		const timeInnerPadding = 15 * ws
+		const timeColumnWidth = 215 * ws
+		const textStartX = edgePadding + timeColumnWidth
 		
-		const smallFontSize = 30 * this.watermarkScale
+		const smallFontSize = 30 * ws
 		ctx.setFontSize(smallFontSize)
 		ctx.font = `${smallFontSize}px "SourceHanSerifCN"`
 		const nameText = this.formData.name
 		const dateText = this.formatDate(this.formData.date)
-		const nameWidth = ctx.measureText ? ctx.measureText(nameText).width : 80 * s
-		const dateWidth = ctx.measureText ? ctx.measureText(dateText).width : 180 * s
 		
-		const infoBoxHeight = 106 * this.watermarkScale
-		const infoBoxWidth = 469 * this.watermarkScale
+		const infoBoxHeight = 106 * ws
+		const infoBoxWidth = 469 * ws
 		const infoBoxX = edgePadding
 		
 		const locBoxHeight = 62 * this.watermarkScale
