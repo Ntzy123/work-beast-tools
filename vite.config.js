@@ -5,4 +5,13 @@ export default defineConfig({
   plugins: [
     uni(),
   ],
+  server: {
+    proxy: {
+      '/api': {
+        target: 'http://kyrian.asia',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api/, '/api')
+      }
+    }
+  }
 })

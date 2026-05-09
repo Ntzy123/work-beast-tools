@@ -69,6 +69,74 @@
 			</view>
 		</view>
 
+		<!-- 送水查询弹窗 -->
+		<view class="scan-modal" v-if="showWaterModal" @click="closeWaterModal">
+			<view class="scan-modal-content" @click.stop>
+				<view class="scan-modal-header water-modal-header">
+					<text class="scan-modal-title">🚰 今日送水情况</text>
+					<view class="scan-modal-close" @click="closeWaterModal">✕</view>
+				</view>
+				<view class="scan-modal-body">
+					<!-- 查询日期 -->
+					<view class="water-date">
+						<text class="water-date-label">查询日期：</text>
+						<text class="water-date-value">{{ waterData.query_date }}</text>
+					</view>
+					
+					<!-- 总送水桶数 -->
+					<view class="water-total">
+						<view class="water-total-icon">🪣</view>
+						<view class="water-total-info">
+							<text class="water-total-number">{{ waterData.total_buckets }}</text>
+							<text class="water-total-label">今日白班总送水桶数</text>
+						</view>
+					</view>
+					
+					<!-- 分割线 -->
+					<view class="water-divider"></view>
+					
+					<!-- 送水人列表 -->
+					<view class="water-section-title">
+						<text>📋 送水人员详情</text>
+					</view>
+					
+					<view class="water-deliverer-list">
+						<view 
+							class="water-deliverer-item" 
+							v-for="(item, index) in waterData.deliverers" 
+							:key="index"
+						>
+							<view class="deliverer-left">
+								<view class="deliverer-avatar">{{ getInitials(item.name) }}</view>
+								<view class="deliverer-info">
+									<text class="deliverer-name">{{ item.name }}</text>
+									<text class="deliverer-mobile">{{ item.mobile }}</text>
+								</view>
+							</view>
+							<view class="deliverer-right">
+								<view class="deliverer-stat">
+									<text class="stat-number">{{ item.order_count }}</text>
+									<text class="stat-label">订单</text>
+								</view>
+								<view class="deliverer-stat">
+									<text class="stat-number">{{ item.total_buckets }}</text>
+									<text class="stat-label">桶数</text>
+								</view>
+							</view>
+						</view>
+					</view>
+					
+					<!-- 无数据提示 -->
+					<view class="water-empty" v-if="waterData.deliverers.length === 0">
+						<text>暂无送水数据</text>
+					</view>
+				</view>
+				<view class="scan-modal-footer">
+					<view class="scan-modal-btn cancel-btn" @click="closeWaterModal">关闭</view>
+				</view>
+			</view>
+		</view>
+		
 		<!-- 扫码结果弹窗 -->
 		<view class="scan-modal" v-if="showScanModal" @click="closeScanModal">
 			<view class="scan-modal-content" @click.stop>
@@ -137,6 +205,13 @@ export default {
 			userName: '张三',
 			currentTab: 0,
 			showScanModal: false,
+			showWaterModal: false,
+			waterData: {
+				success: false,
+				query_date: '',
+				total_buckets: 0,
+				deliverers: []
+			},
 			scanResult: {
 				result: '',
 				scanType: '',
@@ -147,7 +222,7 @@ export default {
 			utilityApps: [
 				{ icon: '🖼️', name: '添加水印', desc: '图片水印工具', path: 'pages/watermark/index' },
 				{ icon: '🌙', name: '自动夜答', desc: '自动夜答管理网站', url: 'http://aec.kyrian.asia' },
-				{ icon: '⏳', name: '敬请期待', desc: '功能开发中', disabled: true },
+				{ icon: '🚰', name: '查询送水', desc: '今日白班送水情况', action: 'queryWater' },
 				{ icon: '⏳', name: '敬请期待', desc: '功能开发中', disabled: true }
 			]
 		}
@@ -418,6 +493,70 @@ export default {
 				}
 			}, 300)
 		},
+		// 查询送水数据
+		async queryWaterDelivery() {
+			uni.showLoading({
+				title: '加载中...'
+			})
+			
+			try {
+				// H5 使用代理避免 CORS，App 使用完整 URL
+				// #ifdef H5
+				const requestUrl = '/api/water'
+				// #endif
+				// #ifndef H5
+				const requestUrl = 'http://kyrian.asia/api/water'
+				// #endif
+				
+				const response = await new Promise((resolve, reject) => {
+					uni.request({
+						url: requestUrl,
+						method: 'GET',
+						success: (res) => {
+							if (res.statusCode === 200 && res.data) {
+								resolve(res.data)
+							} else {
+								reject(new Error('请求失败'))
+							}
+						},
+						fail: (err) => {
+							reject(err)
+						}
+					})
+				})
+				
+				uni.hideLoading()
+				
+				// 更新数据
+				this.waterData = {
+					success: response.success || false,
+					query_date: response.query_date || '',
+					total_buckets: response.total_buckets || 0,
+					deliverers: response.deliverers || []
+				}
+				
+				// 显示弹窗
+				this.showWaterModal = true
+				
+			} catch (error) {
+				uni.hideLoading()
+				console.error('查询送水数据失败:', error)
+				uni.showToast({
+					title: '查询失败，请稍后重试',
+					icon: 'none',
+					duration: 2000
+				})
+			}
+		},
+		// 关闭送水查询弹窗
+		closeWaterModal() {
+			this.showWaterModal = false
+		},
+		// 获取姓名首字母
+		getInitials(name) {
+			if (!name) return '?'
+			return name.charAt(0).toUpperCase()
+		},
 		// 检测是否为URL
 		isUrl(str) {
 			if (!str || typeof str !== 'string') {
@@ -497,6 +636,12 @@ export default {
 					icon: 'none',
 					duration: 2000
 				})
+				return
+			}
+			
+			// 如果是查询送水
+			if (app.action === 'queryWater') {
+				this.queryWaterDelivery()
 				return
 			}
 			
@@ -1116,5 +1261,157 @@ export default {
 .decrypt-failed-text {
 	font-size: 28rpx;
 	color: #856404;
+}
+
+/* 送水查询弹窗样式 */
+.water-modal-header {
+	background: linear-gradient(135deg, #00b4db 0%, #0083b0 100%);
+}
+
+.water-date {
+	text-align: center;
+	margin-bottom: 30rpx;
+}
+
+.water-date-label {
+	font-size: 28rpx;
+	color: #666;
+}
+
+.water-date-value {
+	font-size: 28rpx;
+	color: #333;
+	font-weight: 600;
+}
+
+.water-total {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 40rpx;
+	background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+	border-radius: 24rpx;
+	margin-bottom: 30rpx;
+}
+
+.water-total-icon {
+	font-size: 64rpx;
+	margin-right: 24rpx;
+}
+
+.water-total-info {
+	display: flex;
+	flex-direction: column;
+}
+
+.water-total-number {
+	font-size: 72rpx;
+	font-weight: 800;
+	color: white;
+	line-height: 1;
+}
+
+.water-total-label {
+	font-size: 24rpx;
+	color: rgba(255, 255, 255, 0.9);
+	margin-top: 8rpx;
+}
+
+.water-divider {
+	height: 2rpx;
+	background: #e0e0e0;
+	margin: 30rpx 0;
+}
+
+.water-section-title {
+	font-size: 32rpx;
+	font-weight: 700;
+	color: #333;
+	margin-bottom: 24rpx;
+	display: flex;
+	align-items: center;
+}
+
+.water-deliverer-list {
+	display: flex;
+	flex-direction: column;
+	gap: 20rpx;
+}
+
+.water-deliverer-item {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 24rpx;
+	background: #f8f9fa;
+	border-radius: 16rpx;
+	border-left: 4rpx solid #667eea;
+}
+
+.deliverer-left {
+	display: flex;
+	align-items: center;
+}
+
+.deliverer-avatar {
+	width: 80rpx;
+	height: 80rpx;
+	border-radius: 50%;
+	background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	font-size: 32rpx;
+	font-weight: 700;
+	color: white;
+	margin-right: 20rpx;
+}
+
+.deliverer-info {
+	display: flex;
+	flex-direction: column;
+}
+
+.deliverer-name {
+	font-size: 30rpx;
+	font-weight: 600;
+	color: #333;
+}
+
+.deliverer-mobile {
+	font-size: 24rpx;
+	color: #999;
+	margin-top: 4rpx;
+}
+
+.deliverer-right {
+	display: flex;
+	gap: 24rpx;
+}
+
+.deliverer-stat {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	min-width: 80rpx;
+}
+
+.stat-number {
+	font-size: 36rpx;
+	font-weight: 700;
+	color: #667eea;
+}
+
+.stat-label {
+	font-size: 22rpx;
+	color: #999;
+	margin-top: 4rpx;
+}
+
+.water-empty {
+	text-align: center;
+	padding: 60rpx;
+	color: #999;
+	font-size: 28rpx;
 }
 </style>
