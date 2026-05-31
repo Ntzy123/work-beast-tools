@@ -348,8 +348,8 @@ export default {
 		// 在矩形范围内随机生成经纬度
 		generateRandomCoordinates() {
 			// 定义矩形的两个对角点
-			const point1 = { la: 26.554362, lo: 106.730012 }
-			const point2 = { la: 26.554363, lo: 106.730013 } // 暂代：在第一组基础上最后一位加1
+			const point1 = { la: 26.552515, lo: 106.732060 }
+			const point2 = { la: 26.554315, lo: 106.734860 }
 			
 			// 计算范围
 			const minLa = Math.min(point1.la, point2.la)
