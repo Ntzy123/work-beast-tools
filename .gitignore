@@ -20,6 +20,8 @@ src/static/images/*.jpeg
 # Keep the directory structure
 !src/static/images/.gitkeep
 
+package-lock.json
+
 # Editor directories and files
 .idea
 *.suo

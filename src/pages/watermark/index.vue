@@ -58,6 +58,9 @@
 							<text class="time-value">{{ String(formData.time.second).padStart(2, '0') }}</text>
 						</view>
 					</picker>
+					<view class="sync-time-btn" @click="syncTime">
+						<text class="sync-time-icon">↺</text>
+					</view>
 				</view>
 			</view>
 
@@ -467,6 +470,16 @@ export default {
 		},
 		onSecondChange(e) {
 			this.formData.time.second = parseInt(e.detail.value)
+		},
+		syncTime() {
+			const now = new Date()
+			this.formData.date = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+			this.formData.time = {
+				hour: String(now.getHours()).padStart(2, '0'),
+				minute: String(now.getMinutes()).padStart(2, '0'),
+				second: now.getSeconds()
+			}
+			uni.showToast({ title: '已同步当前时间', icon: 'success', duration: 1500 })
 		},
 		onMultiImageModeChange(e) {
 			this.multiImageMode = parseInt(e.detail.value) + 1
@@ -2076,6 +2089,31 @@ export default {
 	font-size: 28rpx;
 	color: #333;
 	font-weight: 500;
+}
+
+.sync-time-btn {
+	flex-shrink: 0;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 22rpx 26rpx;
+	background: #ffffff;
+	border: none;
+	border-radius: 16rpx;
+	box-shadow: 0 2rpx 10rpx rgba(102, 126, 234, 0.10);
+	transition: all 0.18s ease;
+}
+
+.sync-time-btn:active {
+	background: #f2f3ff;
+	box-shadow: 0 1rpx 4rpx rgba(102, 126, 234, 0.06);
+	transform: scale(0.96);
+}
+
+.sync-time-icon {
+	font-size: 40rpx;
+	line-height: 1;
+	color: #5b6abf;
 }
 
 /* 多图模式行 */
