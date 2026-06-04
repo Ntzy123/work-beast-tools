@@ -10,7 +10,7 @@
 				<text class="scan-icon">📷</text>
 			</view>
 			<!-- 设置按钮 -->
-			<view class="settings-btn" @click="handleSettings">
+			<view class="settings-btn" @click="openSettingsModal">
 				<text class="settings-icon">⚙️</text>
 			</view>
 			<view class="user-info">
@@ -191,12 +191,51 @@
 				</view>
 			</view>
 		</view>
-	</view>
+			<!-- 设置弹窗 -->
+		<view class="scan-modal" v-if="showSettingsModal" @click="closeSettingsModal">
+			<view class="scan-modal-content" @click.stop>
+				<view class="scan-modal-header settings-modal-header">
+					<text class="scan-modal-title">⚙️ 设置</text>
+					<view class="scan-modal-close" @click="closeSettingsModal">✕</view>
+				</view>
+				<view class="scan-modal-body">
+					<!-- 版本信息 -->
+					<view class="settings-section">
+						<view class="settings-section-title">📱 应用信息</view>
+						<view class="settings-info-item">
+							<text class="settings-info-label">应用名称</text>
+							<text class="settings-info-value">牛马工具箱</text>
+						</view>
+						<view class="settings-info-item">
+							<text class="settings-info-label">当前版本</text>
+							<text class="settings-info-value">{{ localVersionName }}</text>
+						</view>
+						<view class="settings-info-item">
+							<text class="settings-info-label">版本号</text>
+							<text class="settings-info-value">{{ localVersionCode }}</text>
+						</view>
+					</view>
+					
+					<!-- 检查更新按钮 -->
+					<view class="settings-section">
+						<view class="settings-update-btn" @click="checkForUpdateManually">
+							<text class="settings-update-btn-icon">🔄</text>
+							<text class="settings-update-btn-text">检查更新</text>
+						</view>
+					</view>
+				</view>
+				<view class="scan-modal-footer">
+					<view class="scan-modal-btn cancel-btn" @click="closeSettingsModal">关闭</view>
+				</view>
+			</view>
+		</view>
+		</view>
 </template>
 
 <script>
 import CryptoJS from 'crypto-js'
 import apiConfig from '@/config/api.config.json'
+import { checkUpdate } from '@/utils/update'
 
 export default {
 	data() {
@@ -219,6 +258,9 @@ export default {
 				isEncrypted: false // 是否为加密的二维码
 			},
 			encryptionKey: 'e373d090928170eb', // 默认加密key
+			showSettingsModal: false,
+			localVersionName: '',
+			localVersionCode: '',
 			utilityApps: [
 				{ icon: '🖼️', name: '添加水印', desc: '图片水印工具', path: 'pages/watermark/index' },
 				{ icon: '🌙', name: '自动夜答', desc: '自动夜答管理网站', url: 'http://aec.kyrian.asia' },
@@ -231,6 +273,23 @@ export default {
 		// 获取状态栏高度
 		const systemInfo = uni.getSystemInfoSync()
 		this.statusBarHeight = systemInfo.statusBarHeight || 0
+		
+				// 获取本地版本号
+		// #ifdef APP-PLUS
+		try {
+			if (typeof plus !== 'undefined' && plus.runtime) {
+				this.localVersionName = plus.runtime.version || '1.0.0'
+				this.localVersionCode = String(parseInt(plus.runtime.versionCode, 10) || 0)
+			}
+		} catch (e) {
+			this.localVersionName = '1.0.0'
+			this.localVersionCode = '0'
+		}
+		// #endif
+		// #ifndef APP-PLUS
+		this.localVersionName = '1.0.0'
+		this.localVersionCode = '0'
+		// #endif
 		
 		// 从缓存中读取加密key，如果没有则使用默认值
 		const cachedKey = uni.getStorageSync('watermark_encryption_key')
@@ -615,16 +674,17 @@ export default {
 				this.openScanUrl()
 			}
 		},
-		handleSettings() {
-			uni.showToast({
-				title: '设置',
-				icon: 'none',
-				duration: 2000
+		openSettingsModal() {
+			this.showSettingsModal = true
+		},
+		closeSettingsModal() {
+			this.showSettingsModal = false
+		},
+		checkForUpdateManually() {
+			this.closeSettingsModal()
+			checkUpdate({ silent: false }).catch(err => {
+				console.error('手动检查更新失败:', err)
 			})
-			// 这里可以添加跳转到设置页面的逻辑
-			// uni.navigateTo({
-			//   url: '/pages/settings/index'
-			// })
 		},
 		handleAppClick(app) {
 			console.log('点击应用', app)
@@ -1414,4 +1474,70 @@ export default {
 	color: #999;
 	font-size: 28rpx;
 }
+/* 设置弹窗样式 */
+.settings-modal-header {
+	background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.settings-section {
+	margin-bottom: 32rpx;
+}
+
+.settings-section-title {
+	font-size: 28rpx;
+	font-weight: 700;
+	color: #333;
+	margin-bottom: 20rpx;
+	display: flex;
+	align-items: center;
+}
+
+.settings-info-item {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	padding: 24rpx;
+	background: #f8f9fa;
+	border-radius: 16rpx;
+	margin-bottom: 16rpx;
+}
+
+.settings-info-label {
+	font-size: 28rpx;
+	color: #666;
+}
+
+.settings-info-value {
+	font-size: 28rpx;
+	color: #333;
+	font-weight: 600;
+}
+
+.settings-update-btn {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 30rpx;
+	background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+	border-radius: 24rpx;
+	transition: all 0.3s ease;
+}
+
+.settings-update-btn:active {
+	opacity: 0.8;
+	transform: scale(0.98);
+}
+
+.settings-update-btn-icon {
+	font-size: 40rpx;
+	margin-right: 16rpx;
+}
+
+.settings-update-btn-text {
+	font-size: 32rpx;
+	font-weight: 600;
+	color: white;
+}
 </style>
+
+

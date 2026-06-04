@@ -2096,7 +2096,7 @@ export default {
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	padding: 22rpx 26rpx;
+	padding: 22rpx 24rpx;
 	background: #ffffff;
 	border: none;
 	border-radius: 16rpx;
