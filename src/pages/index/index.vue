@@ -7,21 +7,12 @@
 		<view class="header">
 			<view class="header-title">WBTools</view>
 			<view class="header-actions">
-				<view class="icon-btn" @click="handleScan">
-					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:20px;height:20px;">
-						<path d="M3 7V5a2 2 0 0 1 2-2h2"/>
-						<path d="M17 3h2a2 2 0 0 1 2 2v2"/>
-						<path d="M21 17v2a2 2 0 0 1-2 2h-2"/>
-						<path d="M7 21H5a2 2 0 0 1-2-2v-2"/>
-						<rect x="9" y="9" width="6" height="6" rx="1"/>
-					</svg>
-				</view>
-				<view class="icon-btn" @click="openSettingsModal">
-					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:20px;height:20px;">
-						<circle cx="12" cy="12" r="3"/>
-						<path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-					</svg>
-				</view>
+			<view class="icon-btn" @click="handleScan">
+				<image src="/static/images/scan.png" style="width:20px;height:20px;"></image>
+			</view>
+			<view class="icon-btn" @click="openSettingsModal">
+				<image src="/static/images/settings.png" style="width:20px;height:20px;"></image>
+			</view>
 			</view>
 		</view>
 
@@ -38,10 +29,7 @@
 
 		<!-- 搜索框 -->
 		<view class="search-box">
-			<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px;color:#a0a0b8;flex-shrink:0;">
-				<circle cx="11" cy="11" r="8"/>
-				<line x1="21" y1="21" x2="16.65" y2="16.65"/>
-			</svg>
+			<image src="/static/images/search.png" style="width:18px;height:18px;"></image>
 			<input class="search-input" type="text" placeholder="搜索工具..." @input="onSearchInput" />
 		</view>
 
@@ -55,28 +43,16 @@
 				@click="handleAppClick(app)"
 			>
 				<view class="tool-icon" :class="['tool-icon-' + (index + 1)]">
-					<svg v-if="index === 0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:24px;height:24px;color:white;">
-						<rect x="3" y="3" width="18" height="18" rx="2"/>
-						<circle cx="8.5" cy="8.5" r="1.5"/>
-						<path d="M21 15l-5-5L5 21"/>
-					</svg>
-					<svg v-if="index === 1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:24px;height:24px;color:white;">
-						<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
-					</svg>
-					<svg v-if="index === 2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:24px;height:24px;color:white;">
-						<path d="M12 2L2 7l10 5 10-5-10-5z"/>
-						<path d="M2 17l10 5 10-5"/>
-						<path d="M2 12l10 5 10-5"/>
-					</svg>
+					<image v-if="index === 0" src="/static/images/image.png" style="width:24px;height:24px;"></image>
+					<image v-if="index === 1" src="/static/images/moon.png" style="width:24px;height:24px;"></image>
+					<image v-if="index === 2" src="/static/images/water.png" style="width:24px;height:24px;"></image>
 				</view>
 				<view class="tool-content">
 					<text class="tool-name">{{ app.name }}</text>
 					<text class="tool-desc">{{ app.desc }}</text>
 				</view>
 				<view class="tool-arrow">
-					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px;">
-						<polyline points="9 18 15 12 9 6"/>
-					</svg>
+					<image src="/static/images/arrow-right.png" style="width:18px;height:18px;"></image>
 				</view>
 			</view>
 		</view>
@@ -95,9 +71,7 @@
 					<!-- 总送水桶数 -->
 					<view class="water-total-card">
 						<view class="water-total-icon">
-							<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:32px;height:32px;">
-								<path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>
-							</svg>
+							<image src="/static/images/water.png" style="width:32px;height:32px;"></image>
 						</view>
 						<view class="water-total-info">
 							<text class="water-total-number">{{ waterData.total_buckets }}</text>
@@ -150,11 +124,9 @@
 			<view class="scan-modal-content" @click.stop>
 				<view class="scan-modal-header">
 					<text class="scan-modal-title">扫码结果</text>
-					<view class="scan-modal-close" @click="closeScanModal">
-						<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px;">
-							<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-						</svg>
-					</view>
+				<view class="scan-modal-close" @click="closeScanModal">
+					<image src="/static/images/close.png" style="width:18px;height:18px;"></image>
+				</view>
 				</view>
 				<view class="scan-modal-body">
 					<view v-if="scanResult.isEncrypted && scanResult.decrypted" class="decrypted-content">
@@ -936,4 +908,6 @@ export default {
 }
 .settings-update-btn:active { opacity: 0.8; }
 .settings-update-btn-text { font-size: 16px; font-weight: 600; color: white; }
+
+
 </style>

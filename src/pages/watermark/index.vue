@@ -1,44 +1,36 @@
 <template>
 	<view class="page">
+		<!-- 状态栏占位 -->
+		<view class="status-bar" :style="{ height: statusBarHeight + 'px' }"></view>
 		<!-- 头部 -->
 		<view class="watermark-header">
 			<view class="header-left">
 				<view class="back-btn" @click="goBack">
-					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:22px;height:22px;">
-						<polyline points="15 18 9 12 15 6"/>
-					</svg>
+					<image src="/static/images/arrow-left.png" style="width:22px;height:22px;"></image>
 				</view>
 				<text class="header-title">添加水印</text>
-			</view>
-			<view class="header-close" @click="goBack">
-				<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px;">
-					<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-				</svg>
-			</view>
 		</view>
+	</view>
 
 		<view class="content">
 			<!-- 上传 -->
 			<view class="upload-card">
 				<view class="upload-area" @click="chooseImage" v-if="!imagePath && imagePaths.length === 0">
 					<view class="upload-icon">
-						<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:28px;height:28px;">
-							<path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
-							<circle cx="12" cy="13" r="4"/>
-						</svg>
+						<image src="/static/images/camera.png" style="width:28px;height:28px;"></image>
 					</view>
 					<text class="upload-title">点击上传图片</text>
 					<text class="upload-hint">支持 JPG / PNG，最多 9 张</text>
 				</view>
-				<view class="image-preview" v-else-if="imagePath">
+					<view class="image-preview" v-else-if="imagePath">
 					<image :src="imagePath" mode="aspectFit" class="preview-img" @click="previewImage(imagePath)"></image>
 					<view class="image-actions">
 						<view class="action-link primary" @click="chooseImage">
-							<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+							<image src="/static/images/refresh.png" style="width:16px;height:16px;"></image>
 							重新选择
 						</view>
 						<view class="action-link danger" @click="removeImage">
-							<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+							<image src="/static/images/delete.png" style="width:16px;height:16px;"></image>
 							删除
 						</view>
 					</view>
@@ -47,11 +39,11 @@
 					<text class="images-count">已选择 {{ imagePaths.length }} 张照片</text>
 					<view class="image-actions">
 						<view class="action-link primary" @click="chooseImage">
-							<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+							<image src="/static/images/refresh.png" style="width:16px;height:16px;"></image>
 							重新选择
 						</view>
 						<view class="action-link danger" @click="removeImage">
-							<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+							<image src="/static/images/delete.png" style="width:16px;height:16px;"></image>
 							删除
 						</view>
 					</view>
@@ -90,12 +82,9 @@
 						<text class="time-value">{{ String(formData.time.second).padStart(2, '0') }}</text>
 					</view>
 				</picker>
-				<view class="sync-btn" @click="syncTime">
-					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:22px;height:22px;">
-						<polyline points="23 4 23 10 17 10"/>
-						<path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
-					</svg>
-				</view>
+			<view class="sync-btn" @click="syncTime">
+				<image src="/static/images/refresh.png" style="width:22px;height:22px;"></image>
+			</view>
 			</view>
 
 			<!-- 多图模式 -->
@@ -128,11 +117,7 @@
 				:class="{ disabled: !canGenerate }"
 				@click="handleGenerateClick"
 			>
-				<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px;margin-right:8px;">
-					<path d="M12 2L2 7l10 5 10-5-10-5z"/>
-					<path d="M2 17l10 5 10-5"/>
-					<path d="M2 12l10 5 10-5"/>
-				</svg>
+				<image src="/static/images/water.png" style="width:18px;height:18px;margin-right:8px;"></image>
 				生成水印
 			</button>
 
@@ -178,9 +163,7 @@
 				></image>
 				</view>
 				<view class="preview-close-btn" @click="closePreview">
-					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:20px;height:20px;">
-						<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-					</svg>
+					<image src="/static/images/close.png" style="width:20px;height:20px;"></image>
 				</view>
 			</view>
 		</view>
@@ -212,6 +195,7 @@ export default {
 		
 		return {
 			isH5,
+			statusBarHeight: 0,
 			imagePath: '',
 			imagePaths: [],
 			resultImage: '',
@@ -267,16 +251,16 @@ export default {
 		}
 	},
 	onLoad() {
+		const systemInfo = uni.getSystemInfoSync()
+		this.statusBarHeight = systemInfo.statusBarHeight || 0
+		this.screenWidth = systemInfo.windowWidth
+		this.watermarkScale = this.referenceScreenWidth / this.screenWidth
 		const cachedKey = uni.getStorageSync('watermark_encryption_key')
 		if (cachedKey) {
 			this.encryptionKey = cachedKey
 		} else {
 			uni.setStorageSync('watermark_encryption_key', this.encryptionKey)
 		}
-		
-		const systemInfo = uni.getSystemInfoSync()
-		this.screenWidth = systemInfo.windowWidth
-		this.watermarkScale = this.referenceScreenWidth / this.screenWidth
 		
 		this.warmupCanvas()
 	},
@@ -1119,4 +1103,7 @@ $shadow: 0 1px 8px rgba(0,0,0,0.04);
 	backdrop-filter: blur(8px);
 }
 .preview-close-btn:active { background: rgba(255,255,255,0.25); transform: scale(0.9); }
+
+
+.status-bar { width: 100%; background: transparent; }
 </style>
