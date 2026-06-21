@@ -1,115 +1,148 @@
 <template>
 	<view class="page">
-		<!-- 使用统一容器，通过类名处理 H5 滚动差异 -->
+		<!-- 头部 -->
+		<view class="watermark-header">
+			<view class="header-left">
+				<view class="back-btn" @click="goBack">
+					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:22px;height:22px;">
+						<polyline points="15 18 9 12 15 6"/>
+					</svg>
+				</view>
+				<text class="header-title">添加水印</text>
+			</view>
+			<view class="header-close" @click="goBack">
+				<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px;">
+					<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+				</svg>
+			</view>
+		</view>
+
 		<view class="content">
-			<!-- 图片上传区域 -->
-			<view class="upload-section">
-				<view class="section-title">选择图片</view>
+			<!-- 上传 -->
+			<view class="upload-card">
 				<view class="upload-area" @click="chooseImage" v-if="!imagePath && imagePaths.length === 0">
-					<text class="upload-icon">📷</text>
-					<text class="upload-text">点击上传图片</text>
+					<view class="upload-icon">
+						<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:28px;height:28px;">
+							<path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+							<circle cx="12" cy="13" r="4"/>
+						</svg>
+					</view>
+					<text class="upload-title">点击上传图片</text>
+					<text class="upload-hint">支持 JPG / PNG，最多 9 张</text>
 				</view>
 				<view class="image-preview" v-else-if="imagePath">
 					<image :src="imagePath" mode="aspectFit" class="preview-img" @click="previewImage(imagePath)"></image>
 					<view class="image-actions">
-						<view class="action-btn" @click="chooseImage">重新选择</view>
-						<view class="action-btn delete" @click="removeImage">删除</view>
+						<view class="action-link primary" @click="chooseImage">
+							<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+							重新选择
+						</view>
+						<view class="action-link danger" @click="removeImage">
+							<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+							删除
+						</view>
 					</view>
 				</view>
 				<view class="images-preview" v-else-if="imagePaths.length > 0">
-					<view class="images-count">已选择 {{ imagePaths.length }} 张照片</view>
+					<text class="images-count">已选择 {{ imagePaths.length }} 张照片</text>
 					<view class="image-actions">
-						<view class="action-btn" @click="chooseImage">重新选择</view>
-						<view class="action-btn delete" @click="removeImage">删除</view>
+						<view class="action-link primary" @click="chooseImage">
+							<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+							重新选择
+						</view>
+						<view class="action-link danger" @click="removeImage">
+							<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+							删除
+						</view>
 					</view>
 				</view>
 			</view>
 
-			<!-- 姓名输入 -->
-			<view class="form-section">
-				<view class="section-title">姓名</view>
-					<input 
-					class="simple-input" 
-						v-model="formData.name"
-						placeholder="请输入姓名"
-						type="text"
-					/>
+			<!-- 姓名 -->
+			<view class="section-title">姓名</view>
+			<view class="form-card">
+				<input 
+					class="form-input" 
+					v-model="formData.name"
+					placeholder="请输入姓名"
+					type="text"
+				/>
 			</view>
 
-			<!-- 时间选择 -->
-			<view class="form-section">
-				<view class="section-title">时间</view>
-				<view class="time-selector">
-					<picker mode="date" :value="formData.date" @change="onDateChange">
-						<view class="time-item">
-							<text class="time-label">日期</text>
-							<text class="time-value">{{ formatDate(formData.date) }}</text>
-						</view>
-					</picker>
-					<picker mode="time" :value="timeValue" @change="onTimeChange">
-						<view class="time-item">
-							<text class="time-label">时间</text>
-							<text class="time-value">{{ formatTime(formData.time) }}</text>
-						</view>
-					</picker>
-					<picker mode="selector" :range="secondRange" :value="formData.time.second" @change="onSecondChange">
-						<view class="time-item">
-							<text class="time-label">秒</text>
-							<text class="time-value">{{ String(formData.time.second).padStart(2, '0') }}</text>
-						</view>
-					</picker>
-					<view class="sync-time-btn" @click="syncTime">
-						<text class="sync-time-icon">↺</text>
+			<!-- 时间 -->
+			<view class="section-title">时间</view>
+			<view class="time-row">
+				<picker mode="date" :value="formData.date" @change="onDateChange">
+					<view class="time-box date-box">
+						<text class="time-label">日期</text>
+						<text class="time-value">{{ formatDate(formData.date) }}</text>
 					</view>
+				</picker>
+				<picker mode="time" :value="timeValue" @change="onTimeChange">
+					<view class="time-box">
+						<text class="time-label">时间</text>
+						<text class="time-value">{{ formatTime(formData.time) }}</text>
+					</view>
+				</picker>
+				<picker mode="selector" :range="secondRange" :value="formData.time.second" @change="onSecondChange">
+					<view class="time-box small">
+						<text class="time-label">秒</text>
+						<text class="time-value">{{ String(formData.time.second).padStart(2, '0') }}</text>
+					</view>
+				</picker>
+				<view class="sync-btn" @click="syncTime">
+					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:22px;height:22px;">
+						<polyline points="23 4 23 10 17 10"/>
+						<path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+					</svg>
 				</view>
 			</view>
 
-			<!-- 多图模式和时间跨度 -->
-			<view class="form-section" v-if="imagePath || imagePaths.length > 0">
-				<view class="section-title">多图模式</view>
-				<view class="multi-image-row">
-					<view class="multi-image-selector">
-						<picker mode="selector" :range="multiImageModeRange" :value="multiImageMode - 1" @change="onMultiImageModeChange">
-							<view class="time-item">
-								<text class="time-label">倍数</text>
-								<text class="time-value">×{{ multiImageMode }}</text>
-							</view>
-						</picker>
-					</view>
-					<view class="time-span-input" v-if="multiImageMode > 1 || (multiImageMode === 1 && imagePaths.length > 1)">
-						<view class="time-item">
-							<text class="time-label">时间跨度（分钟）</text>
-							<input 
-								class="time-span-input-field" 
-								v-model.number="timeSpan"
-								placeholder="10"
-								type="digit"
-							/>
+			<!-- 多图模式 -->
+			<view class="section-title">多图模式</view>
+			<view class="multi-row">
+				<view class="multi-col">
+					<picker mode="selector" :range="multiImageModeRange" :value="multiImageMode - 1" @change="onMultiImageModeChange">
+						<view class="multi-box">
+							<text class="time-label">倍数</text>
+							<text class="time-value">×{{ multiImageMode }}</text>
 						</view>
+					</picker>
+				</view>
+				<view class="multi-col" v-if="multiImageMode > 1 || (multiImageMode === 1 && imagePaths.length > 1)">
+					<view class="multi-box">
+						<text class="time-label">时间跨度（分钟）</text>
+						<input 
+							class="time-span-input-field" 
+							v-model.number="timeSpan"
+							placeholder="10"
+							type="digit"
+						/>
 					</view>
 				</view>
 			</view>
 
 			<!-- 生成按钮 -->
-			<view class="generate-section">
-				<button 
-					class="generate-btn" 
-					:class="{ disabled: !canGenerate }"
-					@click="handleGenerateClick"
-				>
-					生成水印
-				</button>
-			</view>
+			<button 
+				class="generate-btn" 
+				:class="{ disabled: !canGenerate }"
+				@click="handleGenerateClick"
+			>
+				<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px;margin-right:8px;">
+					<path d="M12 2L2 7l10 5 10-5-10-5z"/>
+					<path d="M2 17l10 5 10-5"/>
+					<path d="M2 12l10 5 10-5"/>
+				</svg>
+				生成水印
+			</button>
 
 			<!-- 生成结果 -->
-			<view class="result-section" v-if="resultImage">
-				<view class="section-title">生成结果</view>
+			<view class="result-card" v-if="resultImage">
 				<image :src="resultImage" mode="aspectFit" class="result-img" @click="previewImage(resultImage)"></image>
 			</view>
-			</view>
+		</view>
 
-		<!-- 隐藏的canvas用于绘制 -->
-		<!-- 【关键】canvas 需要设置实际像素尺寸和样式尺寸 -->
+		<!-- 隐藏的canvas -->
 		<canvas 
 			canvas-id="watermarkCanvas" 
 			id="watermarkCanvas"
@@ -122,9 +155,7 @@
 				pointerEvents: 'none', 
 				zIndex: -1 
 			}"
-		>
-		<!-- Android兼容性提示：确保Canvas宽高正确设置 -->
-		</canvas>
+		></canvas>
 		
 		<!-- 图片预览弹窗 -->
 		<view class="image-preview-modal" v-if="showPreview" @click="closePreview">
@@ -146,7 +177,11 @@
 					class="preview-image"
 				></image>
 				</view>
-				<view class="close-btn" @click="closePreview">✕</view>
+				<view class="preview-close-btn" @click="closePreview">
+					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:20px;height:20px;">
+						<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+					</svg>
+				</view>
 			</view>
 		</view>
 	</view>
@@ -166,16 +201,13 @@ export default {
 		isH5 = true
 		// #endif
 
-		// 获取当前时间
 		const now = new Date()
 		const currentDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
 		const currentHour = String(now.getHours()).padStart(2, '0')
 		const currentMinute = String(now.getMinutes()).padStart(2, '0')
 		const currentSecond = now.getSeconds()
 		
-		// 生成秒的选择范围 0-59
 		const secondRange = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0'))
-		// 多图模式选择范围 1-10
 		const multiImageModeRange = Array.from({ length: 10 }, (_, i) => i + 1)
 		
 		return {
@@ -194,17 +226,14 @@ export default {
 			secondRange,
 			canvasWidth: 750,
 			canvasHeight: 1334,
-			// 字体预热状态（用于 Android 端）
 			fontReady: false,
-			// 屏幕和缩放相关
-			screenWidth: 411, // 默认值，会在onLoad中更新
-			watermarkScale: 1, // 水印缩放比例，默认为1
-			referenceScreenWidth: 411, // 参考屏幕宽度（2K手机，如iPhone 13 Pro Max）
-	// 图片预览相关
+			screenWidth: 411,
+			watermarkScale: 1,
+			referenceScreenWidth: 411,
 	showPreview: false,
 	previewImageUrl: '',
 	scale: 1,
-	initialScale: 1, // 初始缩放比例（撑满屏幕）
+	initialScale: 1,
 	translateX: 0,
 	translateY: 0,
 	isDragging: false,
@@ -215,18 +244,14 @@ export default {
 	lastTranslateY: 0,
 	startDistance: 0,
 	lastScale: 1,
-	nativeWheelHandler: null,  // 存储原生 wheel 事件处理器的引用
-	// 图片和容器尺寸信息
+	nativeWheelHandler: null,
 	imageWidth: 0,
 	imageHeight: 0,
 	containerWidth: 0,
 	containerHeight: 0,
-	// 双指缩放中心点
 	pinchCenterX: 0,
 	pinchCenterY: 0,
-	// 回弹动画
 	isSpringBack: false,
-	// 加密key（从缓存读取或使用默认值）
 	encryptionKey: 'e373d090928170eb'
 	}
 	},
@@ -242,39 +267,31 @@ export default {
 		}
 	},
 	onLoad() {
-		// 从缓存中读取加密key，如果没有则使用默认值
 		const cachedKey = uni.getStorageSync('watermark_encryption_key')
 		if (cachedKey) {
 			this.encryptionKey = cachedKey
 		} else {
-			// 首次使用，保存默认key到缓存
 			uni.setStorageSync('watermark_encryption_key', this.encryptionKey)
 		}
 		
-		// 获取屏幕信息，计算水印缩放比例
 		const systemInfo = uni.getSystemInfoSync()
 		this.screenWidth = systemInfo.windowWidth
-		// 计算缩放比例：参考屏幕宽度 / 当前屏幕宽度
-		// 这样在2K手机上比例为1，在1.5K手机上比例>1（水印更大）
 		this.watermarkScale = this.referenceScreenWidth / this.screenWidth
 		
-		// 预热 Canvas（Android 端专用，强制加载字体）
 		this.warmupCanvas()
 	},
 	methods: {
-		// ===== Android 端字体预热 =====
-		
-		// 预热 Canvas，强制 Android WebView 加载字体
+		goBack() {
+			uni.navigateBack()
+		},
 		warmupCanvas() {
 			// #ifdef APP-PLUS
-			// 创建隐藏的 canvas 预热
 			this.$nextTick(() => {
 				const ctx = uni.createCanvasContext('watermarkCanvas', this)
 				ctx.setFontSize(20)
 				ctx.font = '20px "SourceHanSerifCN"'
 				ctx.fillText('预热字体', 0, 30)
 				ctx.draw(false, () => {
-					// 预热完成
 					setTimeout(() => {
 						this.fontReady = true
 						console.log('Canvas 预热完成，字体已加载')
@@ -284,58 +301,35 @@ export default {
 			// #endif
 			
 			// #ifndef APP-PLUS
-			// 非 App 端直接标记就绪
 			this.fontReady = true
 			// #endif
 		},
 		
-		// 等待字体准备就绪
 		async waitForFont() {
-			// 如果已经就绪，直接返回
-			if (this.fontReady) {
-				return
-			}
-			
-			// 等待最多 3 秒
+			if (this.fontReady) return
 			const maxWait = 3000
 			const startTime = Date.now()
-			
 			while (!this.fontReady && (Date.now() - startTime < maxWait)) {
 				await new Promise(resolve => setTimeout(resolve, 200))
 			}
-			
-			// 额外等待一段时间确保字体渲染完成
 			await new Promise(resolve => setTimeout(resolve, 300))
 		},
 		
-		// ===== 原有方法 =====
-		
-		// 从服务器获取最新的加密key
 		async fetchKeyFromServer() {
 			try {
-				// 使用静态导入的配置文件
 				const config = apiConfig.watermarkKey
-				
-				// 发起HTTP请求
 				const response = await new Promise((resolve, reject) => {
 					uni.request({
 						url: config.url,
 						method: config.method,
 						header: config.headers,
-						success: (res) => {
-							resolve(res)
-						},
-						fail: (err) => {
-							reject(err)
-						}
+						success: (res) => { resolve(res) },
+						fail: (err) => { reject(err) }
 					})
 				})
-				
-				// 检查响应是否成功
 				if (response.statusCode === 200 && response.data) {
 					const data = response.data
 					if (data.code === 0 && data.result && data.result.key) {
-						// 更新key到缓存
 						const newKey = data.result.key
 						this.encryptionKey = newKey
 						uni.setStorageSync('watermark_encryption_key', newKey)
@@ -343,1594 +337,428 @@ export default {
 					}
 				}
 			} catch (error) {
-				// 请求失败，忽略，继续使用缓存中的key
 				console.log('获取加密key失败，使用缓存key:', error)
 			}
 		},
 		
-		// 在矩形范围内随机生成经纬度
 		generateRandomCoordinates() {
-			// 定义矩形的两个对角点
 			const point1 = { la: 26.552515, lo: 106.732060 }
 			const point2 = { la: 26.554315, lo: 106.734860 }
-			
-			// 计算范围
 			const minLa = Math.min(point1.la, point2.la)
 			const maxLa = Math.max(point1.la, point2.la)
 			const minLo = Math.min(point1.lo, point2.lo)
 			const maxLo = Math.max(point1.lo, point2.lo)
-			
-			// 在范围内随机生成，保留6位小数（GPS标准精度）
 			const randomLa = minLa + Math.random() * (maxLa - minLa)
 			const randomLo = minLo + Math.random() * (maxLo - minLo)
-			
-			return {
-				la: parseFloat(randomLa.toFixed(6)),
-				lo: parseFloat(randomLo.toFixed(6))
-			}
+			return { la: parseFloat(randomLa.toFixed(6)), lo: parseFloat(randomLo.toFixed(6)) }
 		},
 		
-		// 生成随机7位数员工ID（不与staffMap中的ID重复）
 		generateRandomStaffId() {
 			const existingIds = Object.values(staffMap)
-			let randomId
-			let attempts = 0
-			const maxAttempts = 100 // 防止无限循环
-			
+			let randomId, attempts = 0
+			const maxAttempts = 100
 			do {
-				// 生成7位数随机ID (1000000 - 9999999)
 				randomId = Math.floor(Math.random() * 9000000) + 1000000
 				attempts++
 			} while (existingIds.includes(randomId) && attempts < maxAttempts)
-			
 			return randomId
 		},
 		
-		// 生成加密的二维码文本
 		generateQRCodeText() {
-			// 1. 获取员工ID（如果找不到则随机生成）
 			let staffId = staffMap[this.formData.name]
-			if (!staffId) {
-				staffId = this.generateRandomStaffId()
-			}
-			
-			// 2. 生成Unix时间戳（秒）
+			if (!staffId) staffId = this.generateRandomStaffId()
 			const dateStr = `${this.formData.date} ${this.formData.time.hour}:${this.formData.time.minute}:${String(this.formData.time.second).padStart(2, '0')}`
 			const timestamp = Math.floor(new Date(dateStr).getTime() / 1000)
-			
-			// 3. 在指定矩形范围内随机生成经纬度
 			const coords = this.generateRandomCoordinates()
-			const la = coords.la
-			const lo = coords.lo
-			
-			// 4. 构建明文数据对象
-			const data = {
-				g: {
-					c: "GCJ-02",
-					la: la,
-					lo: lo,
-					n: ""
-				},
-				n: this.formData.name,
-				or: 2,
-				ot: timestamp,
-				s: staffId
-			}
-			
-		// 5. 序列化为紧凑JSON（无空格）
-		const plainText = JSON.stringify(data, null, 0)
-		
-		// 6. AES-128-ECB 加密（使用缓存的key）
-		const key = CryptoJS.enc.Utf8.parse(this.encryptionKey)
-		const encrypted = CryptoJS.AES.encrypt(plainText, key, {
-			mode: CryptoJS.mode.ECB,
-			padding: CryptoJS.pad.Pkcs7
-		})
-			
-			// 7. Base64 编码
+			const data = { g: { c: "GCJ-02", la: coords.la, lo: coords.lo, n: "" }, n: this.formData.name, or: 2, ot: timestamp, s: staffId }
+			const plainText = JSON.stringify(data, null, 0)
+			const key = CryptoJS.enc.Utf8.parse(this.encryptionKey)
+			const encrypted = CryptoJS.AES.encrypt(plainText, key, { mode: CryptoJS.mode.ECB, padding: CryptoJS.pad.Pkcs7 })
 			const encryptedText = encrypted.toString()
-			
-			// 8. 构建最终的 JSON 字符串（保留 \u003d 不被转义）
-			const finalText = `{"text":"${encryptedText.replace(/=/g, '\\u003d')}","version":"v1.0"}`
-			
-			return finalText
+			return `{"text":"${encryptedText.replace(/=/g, '\\u003d')}","version":"v1.0"}`
 		},
 		chooseImage() {
 			uni.chooseImage({
 				count: 9,
 				sourceType: ['album', 'camera'],
 				success: (res) => {
-					if (res.tempFilePaths.length === 1) {
-						this.imagePath = res.tempFilePaths[0]
-						this.imagePaths = []
-					} else {
-						this.imagePaths = res.tempFilePaths
-						this.imagePath = ''
-					}
+					if (res.tempFilePaths.length === 1) { this.imagePath = res.tempFilePaths[0]; this.imagePaths = [] }
+					else { this.imagePaths = res.tempFilePaths; this.imagePath = '' }
 				},
-				fail: (err) => {
-				}
+				fail: (err) => {}
 			})
 		},
-		removeImage() {
-			this.imagePath = ''
-			this.imagePaths = []
-			this.resultImage = ''
-		},
-		onDateChange(e) {
-			this.formData.date = e.detail.value
-		},
-		onTimeChange(e) {
-			const value = e.detail.value || ''
-			const [h, m] = value.split(':')
-			if (h != null && m != null) {
-				this.formData.time.hour = String(h).padStart(2, '0')
-				this.formData.time.minute = String(m).padStart(2, '0')
-			}
-		},
-		onSecondChange(e) {
-			this.formData.time.second = parseInt(e.detail.value)
-		},
-		syncTime() {
-			const now = new Date()
-			this.formData.date = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
-			this.formData.time = {
-				hour: String(now.getHours()).padStart(2, '0'),
-				minute: String(now.getMinutes()).padStart(2, '0'),
-				second: now.getSeconds()
-			}
-			uni.showToast({ title: '已同步当前时间', icon: 'success', duration: 1500 })
-		},
-		onMultiImageModeChange(e) {
-			this.multiImageMode = parseInt(e.detail.value) + 1
-		},
-		formatDate(date) {
-			if (!date) return ''
-			const d = new Date(date)
-			const weekdays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
-			const weekday = weekdays[d.getDay()]
-			return `${date} ${weekday}`
-		},
-		formatTime(time) {
-			if (!time) return ''
-			return `${time.hour}:${time.minute}`
-		},
+		removeImage() { this.imagePath = ''; this.imagePaths = []; this.resultImage = '' },
+		onDateChange(e) { this.formData.date = e.detail.value },
+		onTimeChange(e) { const value = e.detail.value || ''; const [h, m] = value.split(':'); if (h != null && m != null) { this.formData.time.hour = String(h).padStart(2,'0'); this.formData.time.minute = String(m).padStart(2,'0') } },
+		onSecondChange(e) { this.formData.time.second = parseInt(e.detail.value) },
+		syncTime() { const now = new Date(); this.formData.date = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`; this.formData.time = { hour: String(now.getHours()).padStart(2,'0'), minute: String(now.getMinutes()).padStart(2,'0'), second: now.getSeconds() }; uni.showToast({ title: '已同步当前时间', icon: 'success', duration: 1500 }) },
+		onMultiImageModeChange(e) { this.multiImageMode = parseInt(e.detail.value) + 1 },
+		formatDate(date) { if (!date) return ''; const d = new Date(date); const weekdays = ['周日','周一','周二','周三','周四','周五','周六']; return `${date} ${weekdays[d.getDay()]}` },
+		formatTime(time) { if (!time) return ''; return `${time.hour}:${time.minute}` },
 		handleGenerateClick() {
 			const hasImage = (this.imagePaths.length > 0) || (!!this.imagePath && this.imagePath.trim && this.imagePath.trim().length > 0)
 			const hasName = !!(this.formData.name && this.formData.name.trim && this.formData.name.trim().length > 0)
-			
-			if (!hasImage) {
-				uni.showToast({
-					title: '请先上传图片',
-					icon: 'none',
-					duration: 2000
-				})
-				return
-			}
-			
-			if (!hasName) {
-				uni.showToast({
-					title: '请输入姓名',
-					icon: 'none',
-					duration: 2000
-				})
-				return
-			}
-
-			if ((this.multiImageMode > 1 || (this.multiImageMode === 1 && this.imagePaths.length > 1)) && (!this.timeSpan || this.timeSpan <= 0)) {
-				uni.showToast({
-					title: '请输入时间跨度',
-					icon: 'none',
-					duration: 2000
-				})
-				return
-			}
-			
-		this.generateWatermark()
-	},
-	async generateWatermark() {
-		await this.fetchKeyFromServer()
-
-		if (this.multiImageMode > 1) {
-			// 多图模式：将每张图片重复生成
-			this.generateMultiImageWatermarks()
-		} else if (this.imagePaths.length > 1) {
-			// 批量处理多张照片（原逻辑）
-			this.generateBatchWatermarks()
-		} else {
-			// 单张处理
-			uni.showLoading({ title: '生成中...' })
-			this.drawWatermark()
-		}
-	},
-	
-	// 多图模式生成
-	async generateMultiImageWatermarks() {
-		const sourceImages = this.imagePaths.length > 0 ? this.imagePaths : [this.imagePath]
-		const imageCount = sourceImages.length
-		const repeatCount = this.multiImageMode
-		const totalCount = imageCount * repeatCount
-		
-		const timeSpanMinutes = Math.round(this.timeSpan)
-		const timeSpanSeconds = timeSpanMinutes * 60
-		const segmentSeconds = Math.floor(timeSpanSeconds / totalCount)
-		
-		// 生成所有图片的时间槽
-		const timeSlots = []
-		for (let i = 0; i < totalCount; i++) {
-			const segmentStart = i * segmentSeconds
-			const segmentEnd = (i + 1) * segmentSeconds - 1
-			const randomSeconds = Math.floor(Math.random() * (segmentEnd - segmentStart + 1)) + segmentStart
-			timeSlots.push(randomSeconds)
-		}
-		
-		uni.showLoading({ title: `生成中 0/${totalCount}` })
-		
-		// 按顺序生成：图1,图2,图3,图1,图2,图3...
-		let currentIndex = 0
-		for (let repeatIdx = 0; repeatIdx < repeatCount; repeatIdx++) {
-			for (let imgIdx = 0; imgIdx < imageCount; imgIdx++) {
-				const sourceImage = sourceImages[imgIdx]
-				const timeOffset = timeSlots[currentIndex]
-				
-				const baseTime = new Date(`${this.formData.date} ${this.formData.time.hour}:${this.formData.time.minute}:${String(this.formData.time.second).padStart(2, '0')}`)
-				const targetTime = new Date(baseTime.getTime() + timeOffset * 1000)
-				
-				const targetDate = `${targetTime.getFullYear()}-${String(targetTime.getMonth() + 1).padStart(2, '0')}-${String(targetTime.getDate()).padStart(2, '0')}`
-				const targetHour = String(targetTime.getHours()).padStart(2, '0')
-				const targetMinute = String(targetTime.getMinutes()).padStart(2, '0')
-				const targetSecond = targetTime.getSeconds()
-				
-				const originalTime = { ...this.formData.time }
-				const originalDate = this.formData.date
-				
-				this.formData.date = targetDate
-				this.formData.time = { hour: targetHour, minute: targetMinute, second: targetSecond }
-				this.imagePath = sourceImage
-				
-				await new Promise((resolve) => {
-					uni.showLoading({ title: `生成中 ${currentIndex + 1}/${totalCount}` })
-					this.drawWatermarkForBatch(resolve, currentIndex === totalCount - 1)
-				})
-				
-				if (currentIndex < totalCount - 1) {
-					this.formData.time = originalTime
-					this.formData.date = originalDate
+			if (!hasImage) { uni.showToast({ title: '请先上传图片', icon: 'none', duration: 2000 }); return }
+			if (!hasName) { uni.showToast({ title: '请输入姓名', icon: 'none', duration: 2000 }); return }
+			if ((this.multiImageMode > 1 || (this.multiImageMode === 1 && this.imagePaths.length > 1)) && (!this.timeSpan || this.timeSpan <= 0)) { uni.showToast({ title: '请输入时间跨度', icon: 'none', duration: 2000 }); return }
+			this.generateWatermark()
+		},
+		async generateWatermark() {
+			await this.fetchKeyFromServer()
+			if (this.multiImageMode > 1) { this.generateMultiImageWatermarks() }
+			else if (this.imagePaths.length > 1) { this.generateBatchWatermarks() }
+			else { uni.showLoading({ title: '生成中...' }); this.drawWatermark() }
+		},
+		async generateMultiImageWatermarks() {
+			const sourceImages = this.imagePaths.length > 0 ? this.imagePaths : [this.imagePath]
+			const imageCount = sourceImages.length, repeatCount = this.multiImageMode, totalCount = imageCount * repeatCount
+			const timeSpanMinutes = Math.round(this.timeSpan), timeSpanSeconds = timeSpanMinutes * 60, segmentSeconds = Math.floor(timeSpanSeconds / totalCount)
+			const timeSlots = []
+			for (let i = 0; i < totalCount; i++) { const ss = i * segmentSeconds, se = (i+1)*segmentSeconds-1; timeSlots.push(Math.floor(Math.random() * (se - ss + 1)) + ss) }
+			uni.showLoading({ title: `生成中 0/${totalCount}` })
+			let currentIndex = 0
+			for (let repeatIdx = 0; repeatIdx < repeatCount; repeatIdx++) {
+				for (let imgIdx = 0; imgIdx < imageCount; imgIdx++) {
+					const sourceImage = sourceImages[imgIdx], timeOffset = timeSlots[currentIndex]
+					const baseTime = new Date(`${this.formData.date} ${this.formData.time.hour}:${this.formData.time.minute}:${String(this.formData.time.second).padStart(2,'0')}`)
+					const targetTime = new Date(baseTime.getTime() + timeOffset * 1000)
+					const td = `${targetTime.getFullYear()}-${String(targetTime.getMonth()+1).padStart(2,'0')}-${String(targetTime.getDate()).padStart(2,'0')}`
+					const th = String(targetTime.getHours()).padStart(2,'0'), tm = String(targetTime.getMinutes()).padStart(2,'0'), ts = targetTime.getSeconds()
+					const oTime = { ...this.formData.time }, oDate = this.formData.date
+					this.formData.date = td; this.formData.time = { hour: th, minute: tm, second: ts }; this.imagePath = sourceImage
+					await new Promise((resolve) => {
+						uni.showLoading({ title: `生成中 ${currentIndex+1}/${totalCount}` })
+						this.drawWatermarkForBatch(resolve, currentIndex === totalCount - 1)
+					})
+					if (currentIndex < totalCount - 1) { this.formData.time = oTime; this.formData.date = oDate }
+					currentIndex++
 				}
-				
-				currentIndex++
 			}
-		}
-	},
-	
-	// 批量生成水印
-	async generateBatchWatermarks() {
-		const imageCount = this.imagePaths.length
-		const timeSpanMinutes = Math.round(this.timeSpan) // 四舍五入取整数
-		const timeSpanSeconds = timeSpanMinutes * 60
-		
-		// 计算每张照片的时间段
-		const segmentSeconds = Math.floor(timeSpanSeconds / imageCount)
-		
-		// 生成每张照片的随机时间
-		const timeSlots = []
-		for (let i = 0; i < imageCount; i++) {
-			const segmentStart = i * segmentSeconds
-			const segmentEnd = (i + 1) * segmentSeconds - 1
-			const randomSeconds = Math.floor(Math.random() * (segmentEnd - segmentStart + 1)) + segmentStart
-			timeSlots.push(randomSeconds)
-		}
-		
-		uni.showLoading({ title: `生成中 0/${imageCount}` })
-		
-		// 依次处理每张照片
-		for (let i = 0; i < imageCount; i++) {
-			const imagePath = this.imagePaths[i]
-			const timeOffset = timeSlots[i]
-			
-			// 计算该照片的时间
-			const baseTime = new Date(`${this.formData.date} ${this.formData.time.hour}:${this.formData.time.minute}:${String(this.formData.time.second).padStart(2, '0')}`)
-			const targetTime = new Date(baseTime.getTime() + timeOffset * 1000)
-			
-			const targetDate = `${targetTime.getFullYear()}-${String(targetTime.getMonth() + 1).padStart(2, '0')}-${String(targetTime.getDate()).padStart(2, '0')}`
-			const targetHour = String(targetTime.getHours()).padStart(2, '0')
-			const targetMinute = String(targetTime.getMinutes()).padStart(2, '0')
-			const targetSecond = targetTime.getSeconds()
-			
-			// 临时保存原始时间
-			const originalTime = { ...this.formData.time }
-			const originalDate = this.formData.date
-			
-			// 设置当前照片的时间
-			this.formData.date = targetDate
-			this.formData.time = { hour: targetHour, minute: targetMinute, second: targetSecond }
-			this.imagePath = imagePath
-			
-			// 等待当前照片处理完成
-			await new Promise((resolve) => {
-				uni.showLoading({ title: `生成中 ${i + 1}/${imageCount}` })
-				this.drawWatermarkForBatch(resolve, i === imageCount - 1)
-			})
-			
-			// 恢复原始时间（最后一张不需要恢复）
-			if (i < imageCount - 1) {
-				this.formData.time = originalTime
-				this.formData.date = originalDate
+		},
+		async generateBatchWatermarks() {
+			const imageCount = this.imagePaths.length, timeSpanMinutes = Math.round(this.timeSpan), timeSpanSeconds = timeSpanMinutes * 60, segmentSeconds = Math.floor(timeSpanSeconds / imageCount)
+			const timeSlots = []
+			for (let i = 0; i < imageCount; i++) { const ss = i * segmentSeconds, se = (i+1)*segmentSeconds-1; timeSlots.push(Math.floor(Math.random() * (se - ss + 1)) + ss) }
+			uni.showLoading({ title: `生成中 0/${imageCount}` })
+			for (let i = 0; i < imageCount; i++) {
+				const imagePath = this.imagePaths[i], timeOffset = timeSlots[i]
+				const baseTime = new Date(`${this.formData.date} ${this.formData.time.hour}:${this.formData.time.minute}:${String(this.formData.time.second).padStart(2,'0')}`)
+				const targetTime = new Date(baseTime.getTime() + timeOffset * 1000)
+				const td = `${targetTime.getFullYear()}-${String(targetTime.getMonth()+1).padStart(2,'0')}-${String(targetTime.getDate()).padStart(2,'0')}`
+				const th = String(targetTime.getHours()).padStart(2,'0'), tm = String(targetTime.getMinutes()).padStart(2,'0'), ts = targetTime.getSeconds()
+				const oTime = { ...this.formData.time }, oDate = this.formData.date
+				this.formData.date = td; this.formData.time = { hour: th, minute: tm, second: ts }; this.imagePath = imagePath
+				await new Promise((resolve) => {
+					uni.showLoading({ title: `生成中 ${i+1}/${imageCount}` })
+					this.drawWatermarkForBatch(resolve, i === imageCount - 1)
+				})
+				if (i < imageCount - 1) { this.formData.time = oTime; this.formData.date = oDate }
 			}
-		}
-	},
-	
-	// 为批量处理绘制单张水印
-	async drawWatermarkForBatch(callback, isLast) {
-		// 等待字体加载
-		await this.waitForFont()
-		
-		uni.getImageInfo({
-			src: this.imagePath,
-			success: (imageInfo) => {
-				const targetWidth = 1080
-				const targetHeight = (imageInfo.height / imageInfo.width) * targetWidth
-				
-				this.canvasWidth = targetWidth
-				this.canvasHeight = targetHeight
-				
+		},
+		async drawWatermarkForBatch(callback, isLast) {
+			await this.waitForFont()
+			uni.getImageInfo({ src: this.imagePath, success: (imageInfo) => {
+				const targetWidth = 1080, targetHeight = (imageInfo.height / imageInfo.width) * targetWidth
+				this.canvasWidth = targetWidth; this.canvasHeight = targetHeight
 				this.$nextTick(() => {
 					const ctx = uni.createCanvasContext('watermarkCanvas', this)
-					const scale = targetWidth / 750
-					
 					ctx.drawImage(this.imagePath, 0, 0, targetWidth, targetHeight)
-					
-					// 绘制水印（复用原有逻辑）
-					this.drawWatermarkContent(ctx, targetWidth, targetHeight, scale)
-					
+					this.drawWatermarkContent(ctx, targetWidth, targetHeight, targetWidth / 750)
 					ctx.draw(false, () => {
-						let delay = 500
+						let delay = 500;
 						// #ifdef APP-PLUS
 						delay = 800
 						// #endif
 						// #ifdef H5
 						delay = 300
 						// #endif
-						
 						setTimeout(() => {
-							uni.canvasToTempFilePath({
-								canvasId: 'watermarkCanvas',
-								width: targetWidth,
-								height: targetHeight,
-								destWidth: targetWidth,
-								destHeight: targetHeight,
-								fileType: 'jpg',
-								quality: 0.9,
-								success: (res) => {
-									this.processImageWithExifForBatch(res.tempFilePath, callback, isLast)
-								},
-								fail: () => {
-									callback()
-								}
-							}, this)
+							uni.canvasToTempFilePath({ canvasId: 'watermarkCanvas', width: targetWidth, height: targetHeight, destWidth: targetWidth, destHeight: targetHeight, fileType: 'jpg', quality: 0.9, success: (res) => { this.processImageWithExifForBatch(res.tempFilePath, callback, isLast) }, fail: () => { callback() } }, this)
 						}, delay)
 					})
 				})
-			},
-			fail: () => {
-				callback()
-			}
-		})
-	},
-	
-	// 绘制水印内容（提取公共逻辑）
-	drawWatermarkContent(ctx, targetWidth, targetHeight, scale) {
-		// 使用 waterMarkScale 作为统一缩放因子（所有布局值基于此缩放）
-		const ws = this.watermarkScale
-		
-		const edgePadding = 21 * ws
-		const borderRadius = 16 * ws
-		const bgColor = 'rgba(0, 0, 0, 0.3)'
-		const textColor = '#ffffff'
-		
-		const timeFontSize = 74 * ws
-		ctx.setFontSize(timeFontSize)
-		ctx.font = `200 ${timeFontSize}px "SourceHanSerifCN"`
-		const timeText = this.formData.time.hour + ':' + this.formData.time.minute
-		
-		// 不依赖 measureText 计算布局：uni-app canvas 的 measureText 对不同数字组合
-		// (如 "17:52" vs "09:07") 返回的宽度精度不一致，导致姓名/日期与时间间距异常
-		// 使用固定的时间列宽度，确保任意 "HH:MM" 都有足够空间，间距始终一致
-		const timeInnerPadding = 15 * ws
-		const timeColumnWidth = 223 * ws
-		const textStartX = edgePadding + timeColumnWidth
-		
-		const smallFontSize = 30 * ws
-		ctx.setFontSize(smallFontSize)
-		ctx.font = `${smallFontSize}px "SourceHanSerifCN"`
-		const nameText = this.formData.name
-		const dateText = this.formatDate(this.formData.date)
-		
-		const dateTextWidth = ctx.measureText ? ctx.measureText(dateText).width : 180 * ws
-		const nameTextWidth = ctx.measureText ? ctx.measureText(nameText).width : 150 * ws
-		const infoBoxHeight = 106 * ws
-		const infoBoxWidth = timeColumnWidth + Math.max(nameTextWidth, dateTextWidth) + 12 * ws
-		const infoBoxX = edgePadding
-		
-		const locBoxHeight = 62 * this.watermarkScale
-		const bottomMargin = 63 * this.watermarkScale
-		const boxGap = 14 * this.watermarkScale
-		const infoBoxY = targetHeight - bottomMargin - locBoxHeight - boxGap - infoBoxHeight
-		
-		this.drawRoundedRect(ctx, infoBoxX, infoBoxY, infoBoxWidth, infoBoxHeight, borderRadius, bgColor)
-		
-		ctx.setFillStyle(textColor)
-		ctx.setFontSize(timeFontSize)
-		ctx.setTextAlign('left')
-		const timeY = infoBoxY + (infoBoxHeight + timeFontSize) / 2 - 10 * this.watermarkScale + 5 * this.watermarkScale
-		ctx.fillText(timeText, infoBoxX + timeInnerPadding, timeY)
-		
-		ctx.setFontSize(smallFontSize)
-		const nameY = infoBoxY + 43 * this.watermarkScale
-		const dateY = infoBoxY + 89 * this.watermarkScale
-		ctx.fillText(nameText, textStartX, nameY)
-		ctx.fillText(dateText, textStartX, dateY)
-		
-		const locBoxY = targetHeight - bottomMargin - locBoxHeight
-		const location = 'Q贵阳首钢贵州之光一期'
-		
-		ctx.setFontSize(smallFontSize)
-		const locTextWidth = ctx.measureText ? ctx.measureText(location).width : 250 * this.watermarkScale
-		const locIconSpace = 62 * this.watermarkScale
-		const locBoxWidth = locIconSpace + locTextWidth + 20 * this.watermarkScale
-		const locBoxX = edgePadding
-		
-		this.drawRoundedRect(ctx, locBoxX, locBoxY, locBoxWidth, locBoxHeight, borderRadius, bgColor)
-		
-		const iconX = locBoxX + 20 * this.watermarkScale
-		const iconY = locBoxY + 17 * this.watermarkScale
-		
-		ctx.drawImage('/static/images/location-pin.png', iconX, iconY)
-		
-		ctx.setFillStyle('#ffffff')
-		ctx.setFontSize(smallFontSize)
-		const locTextY = locBoxY + (locBoxHeight + smallFontSize) / 2 - 4 * this.watermarkScale
-		ctx.fillText(location, locBoxX + 62 * this.watermarkScale, locTextY)
-		
-		try {
-			const qrCodeText = this.generateQRCodeText()
-			if (qrCodeText) {
-				const qrData = QRCode.create(qrCodeText, { errorCorrectionLevel: 'L' })
-				const modules = qrData.modules.data
-				const mCount = qrData.modules.size
-				const qrSize = 258 * this.watermarkScale
-				const margin = 6 * this.watermarkScale
-				const contentSize = qrSize - margin * 2
-				const moduleSize = contentSize / mCount
-				const qrX = targetWidth - qrSize
-				const qrY = targetHeight - qrSize
-				
-				ctx.setFillStyle('#ffffff')
-				ctx.fillRect(qrX, qrY, qrSize, qrSize)
-				
-				ctx.setFillStyle('#000000')
-				for (let row = 0; row < mCount; row++) {
-					for (let col = 0; col < mCount; col++) {
-						const index = row * mCount + col
-						if (modules[index]) {
-							const x1 = Math.floor(qrX + margin + col * moduleSize)
-							const y1 = Math.floor(qrY + margin + row * moduleSize)
-							const x2 = Math.floor(qrX + margin + (col + 1) * moduleSize)
-							const y2 = Math.floor(qrY + margin + (row + 1) * moduleSize)
-							const w = x2 - x1
-							const h = y2 - y1
-							if (w > 0 && h > 0) {
-								ctx.fillRect(x1, y1, w, h)
-							}
-						}
-					}
-				}
-			}
-		} catch (qrErr) {
-			console.error('二维码生成失败', qrErr)
-		}
-	},
-	
-	// 批量处理EXIF
-	processImageWithExifForBatch(tempFilePath, callback, isLast) {
-		// #ifdef H5
-		if (tempFilePath.startsWith('data:image')) {
+			}, fail: () => { callback() } })
+		},
+		drawWatermarkContent(ctx, targetWidth, targetHeight, scale) {
+			const ws = this.watermarkScale
+			const edgePadding = 21 * ws, borderRadius = 16 * ws, bgColor = 'rgba(0, 0, 0, 0.3)', textColor = '#ffffff'
+			const timeFontSize = 74 * ws
+			ctx.setFontSize(timeFontSize)
+			ctx.font = `200 ${timeFontSize}px "SourceHanSerifCN"`
+			const timeText = this.formData.time.hour + ':' + this.formData.time.minute
+			const timeInnerPadding = 15 * ws, timeColumnWidth = 223 * ws, textStartX = edgePadding + timeColumnWidth
+			const smallFontSize = 30 * ws
+			ctx.setFontSize(smallFontSize)
+			ctx.font = `${smallFontSize}px "SourceHanSerifCN"`
+			const nameText = this.formData.name, dateText = this.formatDate(this.formData.date)
+			const dateTextWidth = ctx.measureText ? ctx.measureText(dateText).width : 180 * ws
+			const nameTextWidth = ctx.measureText ? ctx.measureText(nameText).width : 150 * ws
+			const infoBoxHeight = 106 * ws, infoBoxWidth = timeColumnWidth + Math.max(nameTextWidth, dateTextWidth) + 12 * ws, infoBoxX = edgePadding
+			const locBoxHeight = 62 * this.watermarkScale, bottomMargin = 63 * this.watermarkScale, boxGap = 14 * this.watermarkScale
+			const infoBoxY = targetHeight - bottomMargin - locBoxHeight - boxGap - infoBoxHeight
+			this.drawRoundedRect(ctx, infoBoxX, infoBoxY, infoBoxWidth, infoBoxHeight, borderRadius, bgColor)
+			ctx.setFillStyle(textColor)
+			ctx.setFontSize(timeFontSize)
+			ctx.setTextAlign('left')
+			const timeY = infoBoxY + (infoBoxHeight + timeFontSize) / 2 - 10 * this.watermarkScale + 5 * this.watermarkScale
+			ctx.fillText(timeText, infoBoxX + timeInnerPadding, timeY)
+			ctx.setFontSize(smallFontSize)
+			ctx.fillText(nameText, textStartX, infoBoxY + 43 * this.watermarkScale)
+			ctx.fillText(dateText, textStartX, infoBoxY + 89 * this.watermarkScale)
+			const locBoxY = targetHeight - bottomMargin - locBoxHeight, location = 'Q贵阳首钢贵州之光一期'
+			ctx.setFontSize(smallFontSize)
+			const locTextWidth = ctx.measureText ? ctx.measureText(location).width : 250 * this.watermarkScale
+			const locBoxWidth = 62 * this.watermarkScale + locTextWidth + 20 * this.watermarkScale, locBoxX = edgePadding
+			this.drawRoundedRect(ctx, locBoxX, locBoxY, locBoxWidth, locBoxHeight, borderRadius, bgColor)
+			ctx.drawImage('/static/images/location-pin.png', locBoxX + 20 * this.watermarkScale, locBoxY + 17 * this.watermarkScale)
+			ctx.setFillStyle('#ffffff')
+			ctx.setFontSize(smallFontSize)
+			ctx.fillText(location, locBoxX + 62 * this.watermarkScale, locBoxY + (locBoxHeight + smallFontSize) / 2 - 4 * this.watermarkScale)
 			try {
-				const base64WithExif = this.addExifToImage(tempFilePath)
-				this.saveImageForBatch(base64WithExif, callback, isLast)
-			} catch (err) {
-				this.saveImageForBatch(tempFilePath, callback, isLast)
-			}
-		} else {
-			fetch(tempFilePath)
-				.then(res => res.blob())
-				.then(blob => {
-					const reader = new FileReader()
-					reader.onload = (e) => {
-						try {
-							const base64 = e.target.result
-							const base64WithExif = this.addExifToImage(base64)
-							this.saveImageForBatch(base64WithExif, callback, isLast)
-						} catch (err) {
-							this.saveImageForBatch(tempFilePath, callback, isLast)
-						}
-					}
-					reader.readAsDataURL(blob)
-				})
-				.catch(() => {
-					this.saveImageForBatch(tempFilePath, callback, isLast)
-				})
-		}
-		// #endif
-		
-		// #ifndef H5
-		plus.io.resolveLocalFileSystemURL(tempFilePath, (entry) => {
-			entry.file((file) => {
-				const reader = new plus.io.FileReader()
-				reader.onloadend = (e) => {
-					try {
-						const base64 = e.target.result
-						const base64WithExif = this.addExifToImage(base64)
-						const newFileName = '_temp_exif_' + Date.now() + '.jpg'
-						const newFilePath = entry.filesystem.root.toLocalURL() + newFileName
-						const base64Data = base64WithExif.split(',')[1]
-						const byteCharacters = atob(base64Data)
-						const byteNumbers = new Array(byteCharacters.length)
-						for (let i = 0; i < byteCharacters.length; i++) {
-							byteNumbers[i] = byteCharacters.charCodeAt(i)
-						}
-						const byteArray = new Uint8Array(byteNumbers)
-						entry.filesystem.root.getFile(newFileName, { create: true }, (newEntry) => {
-							newEntry.createWriter((writer) => {
-								writer.onwrite = () => {
-									this.saveImageForBatch(newEntry.toLocalURL(), callback, isLast)
-								}
-								writer.onerror = () => {
-									this.saveImageForBatch(tempFilePath, callback, isLast)
-								}
-								writer.write(byteArray.buffer)
-							})
-						})
-					} catch (err) {
-						this.saveImageForBatch(tempFilePath, callback, isLast)
-					}
+				const qrCodeText = this.generateQRCodeText()
+				if (qrCodeText) {
+					const qrData = QRCode.create(qrCodeText, { errorCorrectionLevel: 'L' })
+					const modules = qrData.modules.data, mCount = qrData.modules.size
+					const qrSize = 258 * this.watermarkScale, margin = 6 * this.watermarkScale, contentSize = qrSize - margin * 2, moduleSize = contentSize / mCount
+					const qrX = targetWidth - qrSize, qrY = targetHeight - qrSize
+					ctx.setFillStyle('#ffffff'); ctx.fillRect(qrX, qrY, qrSize, qrSize)
+					ctx.setFillStyle('#000000')
+					for (let row = 0; row < mCount; row++) { for (let col = 0; col < mCount; col++) { if (modules[row * mCount + col]) { const x1 = Math.floor(qrX + margin + col * moduleSize), y1 = Math.floor(qrY + margin + row * moduleSize), w = Math.floor(qrX + margin + (col + 1) * moduleSize) - x1, h = Math.floor(qrY + margin + (row + 1) * moduleSize) - y1; if (w > 0 && h > 0) ctx.fillRect(x1, y1, w, h) } } }
 				}
-				reader.readAsDataURL(file)
-			})
-		}, () => {
-			this.saveImageForBatch(tempFilePath, callback, isLast)
-		})
-		// #endif
-	},
-	
-	// 批量保存图片
-	saveImageForBatch(imageData, callback, isLast) {
-		// #ifdef H5
-		try {
-			const fileName = this.generateTimestampFileName()
-			const link = document.createElement('a')
-			link.href = imageData
-			link.download = fileName
-			document.body.appendChild(link)
-			link.click()
-			document.body.removeChild(link)
-		} catch (e) {
-			console.error('保存失败', e)
-		}
-		// #endif
-		
-		// #ifndef H5
-		this.checkStoragePermissionAndSaveForBatch(imageData, callback, isLast)
-		// #endif
-		
-		if (isLast) {
-			uni.hideLoading()
-			uni.showToast({
-				title: '全部生成完成',
-				icon: 'success'
-			})
-		}
-		callback()
-	},
-	
-	// #ifndef H5
-	checkStoragePermissionAndSaveForBatch(imageData, callback, isLast) {
-		const main = plus.android.runtimeMainActivity()
-		const Build = plus.android.importClass('android.os.Build')
-		const sdkInt = Build.VERSION.SDK_INT
-		
-		if (sdkInt >= 30) {
-			const Environment = plus.android.importClass('android.os.Environment')
-			if (!Environment.isExternalStorageManager()) {
-				if (isLast) {
-					uni.hideLoading()
-					uni.showModal({
-						title: '需要授予权限',
-						content: '保存到自定义目录需要"所有文件访问权限"',
-						confirmText: '去设置',
-						cancelText: '取消',
-						success: (res) => {
-							if (res.confirm) {
-								this.openAllFilesAccessSetting()
-							}
-						}
-					})
-				}
-				callback()
-				return
-			}
-		} else {
-			const result = plus.android.checkPermission('android.permission.WRITE_EXTERNAL_STORAGE')
-			if (result === -1) {
-				if (isLast) {
-					uni.hideLoading()
-					uni.showToast({
-						title: '未授予存储权限',
-						icon: 'none'
-					})
-				}
-				callback()
-				return
-			}
-		}
-		
-		this.saveImageToCustomPathForBatch(imageData, callback, isLast)
-	},
-	
-	saveImageToCustomPathForBatch(imageData, callback, isLast) {
-		const fileName = this.generateTimestampFileName()
-		const targetDir = '/storage/emulated/0/lebang/waterimages/'
-		
-		plus.io.resolveLocalFileSystemURL(targetDir, 
-			(dirEntry) => {
-				this.copyFileToTargetForBatch(imageData, dirEntry, fileName, callback, isLast)
-			},
-			() => {
-				plus.io.resolveLocalFileSystemURL('/storage/emulated/0/', (rootEntry) => {
-					rootEntry.getDirectory('lebang', { create: true }, (lebangDir) => {
-						lebangDir.getDirectory('waterimages', { create: true }, (waterDir) => {
-							this.copyFileToTargetForBatch(imageData, waterDir, fileName, callback, isLast)
-						}, () => {
-							callback()
-						})
-					}, () => {
-						callback()
-					})
-				}, () => {
-					callback()
-				})
-			}
-		)
-	},
-	
-	copyFileToTargetForBatch(imageData, targetDirEntry, fileName, callback, isLast) {
-		plus.io.resolveLocalFileSystemURL(imageData, (sourceEntry) => {
-			this.findAvailableFileName(targetDirEntry, fileName, (finalFileName) => {
-				sourceEntry.copyTo(targetDirEntry, finalFileName,
-					(newEntry) => {
-						this.scanMediaFile(newEntry.fullPath, () => {
-							callback()
-						})
-					},
-					() => {
-						callback()
-					}
-				)
-			})
-		}, () => {
-			callback()
-		})
-	},
-	// #endif
-		async drawWatermark() {
-			// 等待字体加载
-			await this.waitForFont()
-			
-			uni.getImageInfo({
-				src: this.imagePath,
-				success: (imageInfo) => {
-					const targetWidth = 1080
-					const targetHeight = (imageInfo.height / imageInfo.width) * targetWidth
-					
-					this.canvasWidth = targetWidth
-					this.canvasHeight = targetHeight
-					
-					this.$nextTick(() => {
-						const ctx = uni.createCanvasContext('watermarkCanvas', this)
-						const scale = targetWidth / 750
-						
-						ctx.drawImage(this.imagePath, 0, 0, targetWidth, targetHeight)
-						this.drawWatermarkContent(ctx, targetWidth, targetHeight, scale)
-						
-						ctx.draw(false, () => {
-							let delay = 500
-							// #ifdef APP-PLUS
-							delay = 800
-							// #endif
-							// #ifdef H5
-							delay = 300
-							// #endif
-							
-							setTimeout(() => {
-								uni.canvasToTempFilePath({
-									canvasId: 'watermarkCanvas',
-									width: targetWidth,
-									height: targetHeight,
-									destWidth: targetWidth,
-									destHeight: targetHeight,
-									fileType: 'jpg',
-									quality: 0.9,
-									success: (res) => {
-										this.processImageWithExif(res.tempFilePath)
-									},
-									fail: (err) => {
-										uni.hideLoading()
-										uni.showToast({
-											title: '生成失败',
-											icon: 'none'
-										})
-									}
-								}, this)
-							}, delay)
-						})
-					})
-				},
-				fail: () => {
-					uni.hideLoading()
-					uni.showToast({
-						title: '图片加载失败',
-						icon: 'none'
-					})
-				}
-			})
+			} catch (qrErr) { console.error('二维码生成失败', qrErr) }
 		},
-		// 绘制圆角矩形辅助函数
 		drawRoundedRect(ctx, x, y, width, height, radius, color) {
-			ctx.setFillStyle(color)
-			ctx.beginPath()
-			ctx.moveTo(x + radius, y)
-			ctx.lineTo(x + width - radius, y)
+			ctx.setFillStyle(color); ctx.beginPath(); ctx.moveTo(x + radius, y); ctx.lineTo(x + width - radius, y)
 			ctx.arc(x + width - radius, y + radius, radius, 1.5 * Math.PI, 2 * Math.PI)
-			ctx.lineTo(x + width, y + height - radius)
-			ctx.arc(x + width - radius, y + height - radius, radius, 0, 0.5 * Math.PI)
-			ctx.lineTo(x + radius, y + height)
-			ctx.arc(x + radius, y + height - radius, radius, 0.5 * Math.PI, Math.PI)
-			ctx.lineTo(x, y + radius)
-			ctx.arc(x + radius, y + radius, radius, Math.PI, 1.5 * Math.PI)
-			ctx.closePath()
-			ctx.fill()
+			ctx.lineTo(x + width, y + height - radius); ctx.arc(x + width - radius, y + height - radius, radius, 0, 0.5 * Math.PI)
+			ctx.lineTo(x + radius, y + height); ctx.arc(x + radius, y + height - radius, radius, 0.5 * Math.PI, Math.PI)
+			ctx.lineTo(x, y + radius); ctx.arc(x + radius, y + radius, radius, Math.PI, 1.5 * Math.PI); ctx.closePath(); ctx.fill()
 		},
-		// 生成时间戳文件名（格式：年月日时分秒.jpg）
-		// 使用用户选择的时间，而不是当前时间
-		generateTimestampFileName() {
-			// 使用用户选择的日期和时间
-			const dateStr = this.formData.date // 格式：YYYY-MM-DD
-			const [year, month, day] = dateStr.split('-')
-			const hour = this.formData.time.hour
-			const minute = this.formData.time.minute
-			const second = this.formData.time.second
-			return `${year}${month}${day}${hour}${minute}${second}.jpg`
-		},
-		
-		// 将用户选择的时间转换为EXIF格式（YYYY:MM:DD HH:MM:SS）
-		generateExifDateTime() {
-			const dateStr = this.formData.date // YYYY-MM-DD
-			const hour = this.formData.time.hour
-			const minute = this.formData.time.minute
-			const second = this.formData.time.second
-			return `${dateStr.replace(/-/g, ':')} ${hour}:${minute}:${second}`
-		},
-		
-		// 为图片添加EXIF数据
+		generateTimestampFileName() { const ds = this.formData.date; const [y,m,d] = ds.split('-'); return `${y}${m}${d}${this.formData.time.hour}${this.formData.time.minute}${this.formData.time.second}.jpg` },
+		generateExifDateTime() { const ds = this.formData.date; return `${ds.replace(/-/g, ':')} ${this.formData.time.hour}:${this.formData.time.minute}:${this.formData.time.second}` },
 		addExifToImage(base64Image) {
 			try {
-				// 生成EXIF时间字符串
 				const exifDateTime = this.generateExifDateTime()
-				
-				// 创建EXIF对象
-				const zeroth = {}
-				const exif = {}
-				const gps = {}
-				
-				// 写入时间信息
-				exif[piexif.ExifIFD.DateTimeOriginal] = exifDateTime  // 拍摄时间
-				exif[piexif.ExifIFD.DateTimeDigitized] = exifDateTime // 数字化时间
-				zeroth[piexif.ImageIFD.DateTime] = exifDateTime        // 修改时间
-				
-				// 写入软件信息（可选）
+				const zeroth = {}, exif = {}, gps = {}
+				exif[piexif.ExifIFD.DateTimeOriginal] = exifDateTime; exif[piexif.ExifIFD.DateTimeDigitized] = exifDateTime; zeroth[piexif.ImageIFD.DateTime] = exifDateTime
 				zeroth[piexif.ImageIFD.Software] = 'WatermarkTool'
-				
-				// 如果需要写入GPS坐标（可选）
-				// 注意：这里的坐标是用于加密的随机坐标，如果不想暴露可以不写入
-				// const coords = this.generateRandomCoordinates()
-				// gps[piexif.GPSIFD.GPSLatitude] = piexif.GPSHelper.degToDmsRational(coords.latitude)
-				// gps[piexif.GPSIFD.GPSLongitude] = piexif.GPSHelper.degToDmsRational(coords.longitude)
-				
-				// 组装EXIF数据
-				const exifObj = {
-					'0th': zeroth,
-					'Exif': exif,
-					'GPS': gps
-				}
-				
-				// 转换为二进制
-				const exifBytes = piexif.dump(exifObj)
-				
-				// 插入EXIF到图片
-				const newBase64 = piexif.insert(exifBytes, base64Image)
-				
-				return newBase64
-			} catch (err) {
-				// 如果添加EXIF失败，返回原图
-				return base64Image
-			}
+				const exifObj = { '0th': zeroth, 'Exif': exif, 'GPS': gps }
+				const exifBytes = piexif.dump(exifObj); return piexif.insert(exifBytes, base64Image)
+			} catch (err) { return base64Image }
 		},
-		
-		// 处理图片并添加EXIF数据
 		processImageWithExif(tempFilePath) {
 			// #ifdef H5
-			// H5环境：将Canvas输出转换为Base64，添加EXIF后再转回Blob URL
 			if (tempFilePath.startsWith('data:image')) {
-				// 已经是Base64格式
-				try {
-					const base64WithExif = this.addExifToImage(tempFilePath)
-					this.resultImage = base64WithExif
-					uni.hideLoading()
-					// 生成成功后自动保存
-					this.saveImage()
-				} catch (err) {
-					// 降级：使用原图
-					this.resultImage = tempFilePath
-					uni.hideLoading()
-					// 生成成功后自动保存
-					this.saveImage()
-				}
+				try { const b = this.addExifToImage(tempFilePath); this.resultImage = b; uni.hideLoading(); this.saveImage() }
+				catch (err) { this.resultImage = tempFilePath; uni.hideLoading(); this.saveImage() }
 			} else {
-				// Blob URL，需要转换为Base64
-				fetch(tempFilePath)
-					.then(res => res.blob())
-					.then(blob => {
-						const reader = new FileReader()
-						reader.onload = (e) => {
-							try {
-								const base64 = e.target.result
-								const base64WithExif = this.addExifToImage(base64)
-								this.resultImage = base64WithExif
-								uni.hideLoading()
-								// 生成成功后自动保存
-								this.saveImage()
-							} catch (err) {
-								this.resultImage = tempFilePath
-								uni.hideLoading()
-								// 生成成功后自动保存
-								this.saveImage()
-							}
-						}
-						reader.readAsDataURL(blob)
-					})
-					.catch(err => {
-						this.resultImage = tempFilePath
-						uni.hideLoading()
-						// 生成成功后自动保存
-						this.saveImage()
-					})
+				fetch(tempFilePath).then(r=>r.blob()).then(blob=>{const reader=new FileReader();reader.onload=(e)=>{try{const b=this.addExifToImage(e.target.result);this.resultImage=b;uni.hideLoading();this.saveImage()}catch(err){this.resultImage=tempFilePath;uni.hideLoading();this.saveImage()}};reader.readAsDataURL(blob)}).catch(()=>{this.resultImage=tempFilePath;uni.hideLoading();this.saveImage()})
 			}
 			// #endif
-			
 			// #ifndef H5
-			// APP环境：读取文件，添加EXIF，保存为新文件
 			plus.io.resolveLocalFileSystemURL(tempFilePath, (entry) => {
 				entry.file((file) => {
 					const reader = new plus.io.FileReader()
 					reader.onloadend = (e) => {
 						try {
-							const base64 = e.target.result
-							const base64WithExif = this.addExifToImage(base64)
-							
-							// 将Base64保存为新的临时文件
+							const base64 = e.target.result, base64WithExif = this.addExifToImage(base64)
 							const newFileName = '_temp_exif_' + Date.now() + '.jpg'
-							const newFilePath = entry.filesystem.root.toLocalURL() + newFileName
-							
-							// 转换Base64为二进制数据并写入文件
 							const base64Data = base64WithExif.split(',')[1]
-							const byteCharacters = atob(base64Data)
-							const byteNumbers = new Array(byteCharacters.length)
-							for (let i = 0; i < byteCharacters.length; i++) {
-								byteNumbers[i] = byteCharacters.charCodeAt(i)
-							}
+							const byteCharacters = atob(base64Data), byteNumbers = new Array(byteCharacters.length)
+							for (let i = 0; i < byteCharacters.length; i++) byteNumbers[i] = byteCharacters.charCodeAt(i)
 							const byteArray = new Uint8Array(byteNumbers)
-							
-					entry.filesystem.root.getFile(newFileName, { create: true }, (newEntry) => {
-						newEntry.createWriter((writer) => {
-							writer.onwrite = () => {
-								this.resultImage = newEntry.toLocalURL()
-								uni.hideLoading()
-								// 生成成功后自动保存
-								this.saveImage()
-							}
-							writer.onerror = (err) => {
-								// 降级：使用原图
-								this.resultImage = tempFilePath
-								uni.hideLoading()
-								// 生成成功后自动保存
-								this.saveImage()
-							}
-							writer.write(byteArray.buffer)
-						})
-					})
-				} catch (err) {
-					// 降级：使用原图
-					this.resultImage = tempFilePath
-					uni.hideLoading()
-					// 生成成功后自动保存
-					this.saveImage()
-				}
+							entry.filesystem.root.getFile(newFileName,{create:true},(newEntry)=>{newEntry.createWriter((writer)=>{writer.onwrite=()=>{this.resultImage=newEntry.toLocalURL();uni.hideLoading();this.saveImage()};writer.onerror=()=>{this.resultImage=tempFilePath;uni.hideLoading();this.saveImage()};writer.write(byteArray.buffer)})})
+						} catch(err) { this.resultImage=tempFilePath; uni.hideLoading(); this.saveImage() }
 					}
-				reader.readAsDataURL(file)
+					reader.readAsDataURL(file)
+				})
+			}, (err) => { this.resultImage=tempFilePath; uni.hideLoading(); this.saveImage() })
+			// #endif
+		},
+		processImageWithExifForBatch(tempFilePath, callback, isLast) {
+			// #ifdef H5
+			if (tempFilePath.startsWith('data:image')) { try { const b = this.addExifToImage(tempFilePath); this.saveImageForBatch(b, callback, isLast) } catch(err) { this.saveImageForBatch(tempFilePath, callback, isLast) } }
+			else { fetch(tempFilePath).then(r=>r.blob()).then(blob=>{const reader=new FileReader();reader.onload=(e)=>{try{const b=this.addExifToImage(e.target.result);this.saveImageForBatch(b,callback,isLast)}catch(err){this.saveImageForBatch(tempFilePath,callback,isLast)}};reader.readAsDataURL(blob)}).catch(()=>{this.saveImageForBatch(tempFilePath,callback,isLast)}) }
+			// #endif
+			// #ifndef H5
+			plus.io.resolveLocalFileSystemURL(tempFilePath, (entry) => {
+				entry.file((file) => {
+					const reader = new plus.io.FileReader()
+					reader.onloadend = (e) => {
+						try {
+							const base64 = e.target.result, base64WithExif = this.addExifToImage(base64), newFileName = '_temp_exif_' + Date.now() + '.jpg'
+							const base64Data = base64WithExif.split(',')[1], byteCharacters = atob(base64Data), byteNumbers = new Array(byteCharacters.length)
+							for (let i = 0; i < byteCharacters.length; i++) byteNumbers[i] = byteCharacters.charCodeAt(i)
+							const byteArray = new Uint8Array(byteNumbers)
+							entry.filesystem.root.getFile(newFileName,{create:true},(newEntry)=>{newEntry.createWriter((writer)=>{writer.onwrite=()=>{this.saveImageForBatch(newEntry.toLocalURL(),callback,isLast)};writer.onerror=()=>{this.saveImageForBatch(tempFilePath,callback,isLast)};writer.write(byteArray.buffer)})})
+						} catch(err) { this.saveImageForBatch(tempFilePath,callback,isLast) }
+					}
+					reader.readAsDataURL(file)
+				})
+			}, () => { this.saveImageForBatch(tempFilePath,callback,isLast) })
+			// #endif
+		},
+		saveImageForBatch(imageData, callback, isLast) {
+			// #ifdef H5
+			try { const link=document.createElement('a'); link.href=imageData; link.download=this.generateTimestampFileName(); document.body.appendChild(link); link.click(); document.body.removeChild(link) } catch(e) { console.error('保存失败', e) }
+			// #endif
+			// #ifndef H5
+			this.checkStoragePermissionAndSaveForBatch(imageData, callback, isLast)
+			// #endif
+			if (isLast) { uni.hideLoading(); uni.showToast({title:'全部生成完成',icon:'success'}) }
+			callback()
+		},
+		// #ifndef H5
+		checkStoragePermissionAndSaveForBatch(imageData, callback, isLast) {
+			const main = plus.android.runtimeMainActivity(), Build = plus.android.importClass('android.os.Build'), sdkInt = Build.VERSION.SDK_INT
+			if (sdkInt >= 30) {
+				const Environment = plus.android.importClass('android.os.Environment')
+				if (!Environment.isExternalStorageManager()) { if(isLast){uni.hideLoading();uni.showModal({title:'需要授予权限',content:'保存到自定义目录需要"所有文件访问权限"',confirmText:'去设置',cancelText:'取消',success:(res)=>{if(res.confirm)this.openAllFilesAccessSetting()}})} callback(); return }
+			} else { if (plus.android.checkPermission('android.permission.WRITE_EXTERNAL_STORAGE') === -1) { if(isLast){uni.hideLoading();uni.showToast({title:'未授予存储权限',icon:'none'})} callback(); return } }
+			this.saveImageToCustomPathForBatch(imageData, callback, isLast)
+		},
+		saveImageToCustomPathForBatch(imageData, callback, isLast) {
+			const fileName = this.generateTimestampFileName(), targetDir = '/storage/emulated/0/lebang/waterimages/'
+			plus.io.resolveLocalFileSystemURL(targetDir, (dirEntry) => { this.copyFileToTargetForBatch(imageData, dirEntry, fileName, callback, isLast) }, () => {
+				plus.io.resolveLocalFileSystemURL('/storage/emulated/0/', (rootEntry) => {
+					rootEntry.getDirectory('lebang',{create:true},(lebangDir)=>{lebangDir.getDirectory('waterimages',{create:true},(waterDir)=>{this.copyFileToTargetForBatch(imageData,waterDir,fileName,callback,isLast)},()=>{callback()})},()=>{callback()})
+				}, () => { callback() })
 			})
-		}, (err) => {
-			// 降级：使用原图
-			this.resultImage = tempFilePath
-			uni.hideLoading()
-			// 生成成功后自动保存
-			this.saveImage()
-		})
+		},
+		copyFileToTargetForBatch(imageData, targetDirEntry, fileName, callback, isLast) {
+			plus.io.resolveLocalFileSystemURL(imageData, (sourceEntry) => {
+				this.findAvailableFileName(targetDirEntry, fileName, (finalFileName) => {
+					sourceEntry.copyTo(targetDirEntry, finalFileName, (newEntry) => { this.scanMediaFile(newEntry.fullPath, () => { callback() }) }, () => { callback() })
+				})
+			}, () => { callback() })
+		},
 		// #endif
-	},
-		
+		async drawWatermark() {
+			await this.waitForFont()
+			uni.getImageInfo({ src: this.imagePath, success: (imageInfo) => {
+				const targetWidth = 1080, targetHeight = (imageInfo.height / imageInfo.width) * targetWidth
+				this.canvasWidth = targetWidth; this.canvasHeight = targetHeight
+				this.$nextTick(() => {
+					const ctx = uni.createCanvasContext('watermarkCanvas', this)
+					const scale = targetWidth / 750
+					ctx.drawImage(this.imagePath, 0, 0, targetWidth, targetHeight)
+					this.drawWatermarkContent(ctx, targetWidth, targetHeight, scale)
+					ctx.draw(false, () => {
+						let delay = 500;
+						// #ifdef APP-PLUS
+						delay = 800
+						// #endif
+						// #ifdef H5
+						delay = 300
+						// #endif
+						setTimeout(() => {
+							uni.canvasToTempFilePath({ canvasId: 'watermarkCanvas', width: targetWidth, height: targetHeight, destWidth: targetWidth, destHeight: targetHeight, fileType: 'jpg', quality: 0.9, success: (res) => { this.processImageWithExif(res.tempFilePath) }, fail: (err) => { uni.hideLoading(); uni.showToast({title:'生成失败',icon:'none'}) } }, this)
+						}, delay)
+					})
+				})
+			}, fail: () => { uni.hideLoading(); uni.showToast({title:'图片加载失败',icon:'none'}) } })
+		},
 		saveImage() {
 			if (!this.resultImage) return
-			
-		// #ifdef H5
-		// H5 环境：使用浏览器下载
-		try {
-			const fileName = this.generateTimestampFileName()
-			const link = document.createElement('a')
-			link.href = this.resultImage
-			link.download = fileName
-			document.body.appendChild(link)
-			link.click()
-			document.body.removeChild(link)
-			uni.showToast({
-				title: '保存成功',
-				icon: 'success'
-			})
-		} catch (e) {
-			uni.showToast({
-				title: `下载失败: ${e.message || '未知错误'}`,
-				icon: 'none',
-				duration: 3000
-			})
-		}
-		// #endif
-
+			// #ifdef H5
+			try { const link=document.createElement('a'); link.href=this.resultImage; link.download=this.generateTimestampFileName(); document.body.appendChild(link); link.click(); document.body.removeChild(link); uni.showToast({title:'保存成功',icon:'success'}) } catch(e) { uni.showToast({title:`下载失败: ${e.message||'未知错误'}`,icon:'none',duration:3000}) }
+			// #endif
 			// #ifndef H5
-			// APP环境：先检查"所有文件访问权限"，然后保存到 /lebang/waterimages/
 			this.checkStoragePermissionAndSave()
 			// #endif
 		},
-		
 		// #ifndef H5
-		// 检查存储权限（Android 11+ 需要"所有文件访问权限"）
 		checkStoragePermissionAndSave() {
-			// 检查 Android 版本
-			const main = plus.android.runtimeMainActivity()
-			const Build = plus.android.importClass('android.os.Build')
-			const sdkInt = Build.VERSION.SDK_INT
-			
-			// Android 11 (API 30) 及以上需要 MANAGE_EXTERNAL_STORAGE 权限
+			const main = plus.android.runtimeMainActivity(), Build = plus.android.importClass('android.os.Build'), sdkInt = Build.VERSION.SDK_INT
 			if (sdkInt >= 30) {
 				const Environment = plus.android.importClass('android.os.Environment')
-				const hasPermission = Environment.isExternalStorageManager()
-				
-				if (!hasPermission) {
-					// 没有权限，引导用户去设置
-					uni.showModal({
-						title: '需要授予权限',
-						content: '保存到自定义目录需要"所有文件访问权限"\n\n点击确定后，请在设置页面开启"允许访问所有文件"',
-						confirmText: '去设置',
-						cancelText: '取消',
-						success: (res) => {
-							if (res.confirm) {
-								this.openAllFilesAccessSetting()
-							}
-						}
-					})
-					return
-				}
+				if (!Environment.isExternalStorageManager()) { uni.showModal({title:'需要授予权限',content:'保存到自定义目录需要"所有文件访问权限"\n\n点击确定后，请在设置页面开启"允许访问所有文件"',confirmText:'去设置',cancelText:'取消',success:(res)=>{if(res.confirm)this.openAllFilesAccessSetting()}}); return }
 			} else {
-				// Android 10 及以下，检查 WRITE_EXTERNAL_STORAGE 权限
 				const result = plus.android.checkPermission('android.permission.WRITE_EXTERNAL_STORAGE')
-				
-				if (result === -1) {
-					// 没有权限，动态申请
-					plus.android.requestPermissions(
-						['android.permission.WRITE_EXTERNAL_STORAGE'],
-						(resultObj) => {
-							for (const name in resultObj.granted) {
-								if (resultObj.granted[name]) {
-									this.saveImageToCustomPath()
-									return
-								}
-							}
-							uni.showToast({
-								title: '未授予存储权限',
-								icon: 'none'
-							})
-						},
-						(error) => {
-							uni.showToast({
-								title: '权限申请失败',
-								icon: 'none'
-							})
-						}
-					)
-					return
-				}
+				if (result === -1) { plus.android.requestPermissions(['android.permission.WRITE_EXTERNAL_STORAGE'],(r)=>{for(const n in r.granted){if(r.granted[n]){this.saveImageToCustomPath();return}} uni.showToast({title:'未授予存储权限',icon:'none'})},()=>{uni.showToast({title:'权限申请失败',icon:'none'})}); return }
 			}
-			
-			// 有权限，直接保存
 			this.saveImageToCustomPath()
 		},
-		
-		// 打开"所有文件访问权限"设置页面（Android 11+）
 		openAllFilesAccessSetting() {
-			try {
-				const main = plus.android.runtimeMainActivity()
-				const Intent = plus.android.importClass('android.content.Intent')
-				const Settings = plus.android.importClass('android.provider.Settings')
-				const Uri = plus.android.importClass('android.net.Uri')
-				
-				const intent = new Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION)
-				const uri = Uri.parse('package:' + main.getPackageName())
-				intent.setData(uri)
-				
-				main.startActivity(intent)
-				
-				uni.showToast({
-					title: '请在设置中开启权限',
-					icon: 'none',
-					duration: 3000
-				})
-			} catch (e) {
-				uni.showToast({
-					title: '无法打开设置页面',
-					icon: 'none'
-				})
-			}
+			try { const main=plus.android.runtimeMainActivity(), Intent=plus.android.importClass('android.content.Intent'), Settings=plus.android.importClass('android.provider.Settings'), Uri=plus.android.importClass('android.net.Uri'); const intent=new Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION); intent.setData(Uri.parse('package:'+main.getPackageName())); main.startActivity(intent); uni.showToast({title:'请在设置中开启权限',icon:'none',duration:3000}) } catch(e) { uni.showToast({title:'无法打开设置页面',icon:'none'}) }
 		},
-		// #endif
-		
-		// #ifndef H5
-		// APP端保存到自定义路径
 		saveImageToCustomPath() {
-			uni.showLoading({
-				title: '保存中...',
-				mask: true
+			uni.showLoading({title:'保存中...',mask:true})
+			const timeoutId = setTimeout(()=>{uni.hideLoading();uni.showToast({title:'保存超时',icon:'none'})},10000)
+			const fileName = this.generateTimestampFileName(), targetDir = '/storage/emulated/0/lebang/waterimages/'
+			plus.io.resolveLocalFileSystemURL(targetDir, (dirEntry) => { this.copyFileToTarget(timeoutId, dirEntry, fileName) }, () => {
+				plus.io.resolveLocalFileSystemURL('/storage/emulated/0/', (rootEntry) => {
+					rootEntry.getDirectory('lebang',{create:true},(lebangDir)=>{lebangDir.getDirectory('waterimages',{create:true},(waterDir)=>{this.copyFileToTarget(timeoutId,waterDir,fileName)},(e)=>{clearTimeout(timeoutId);uni.hideLoading();uni.showToast({title:'创建目录失败',icon:'none'})})},(e)=>{clearTimeout(timeoutId);uni.hideLoading();uni.showToast({title:`创建目录失败: ${e.message||e.code||'未知错误'}`,icon:'none',duration:3000})})
+				}, (e)=>{clearTimeout(timeoutId);uni.hideLoading();uni.showToast({title:`访问根目录失败: ${e.message||e.code||'未知错误'}`,icon:'none',duration:3000})})
 			})
-			
-			// 超时保护
-			const timeoutId = setTimeout(() => {
-				uni.hideLoading()
-				uni.showToast({
-					title: '保存超时',
-					icon: 'none'
-				})
-			}, 10000)
-			
-			const fileName = this.generateTimestampFileName()
-			const targetDir = '/storage/emulated/0/lebang/waterimages/'
-			
-			// 先确保目录存在
-			plus.io.resolveLocalFileSystemURL(targetDir, 
-				(dirEntry) => {
-					this.copyFileToTarget(timeoutId, dirEntry, fileName)
-				},
-				(err) => {
-					// 目录不存在，创建它
-					plus.io.resolveLocalFileSystemURL('/storage/emulated/0/', (rootEntry) => {
-						rootEntry.getDirectory('lebang', { create: true }, (lebangDir) => {
-							lebangDir.getDirectory('waterimages', { create: true }, (waterDir) => {
-								this.copyFileToTarget(timeoutId, waterDir, fileName)
-							}, (createErr) => {
-								clearTimeout(timeoutId)
-								uni.hideLoading()
-								uni.showToast({ title: '创建目录失败', icon: 'none' })
-							})
-					}, (createErr) => {
-						clearTimeout(timeoutId)
-						uni.hideLoading()
-						uni.showToast({ 
-							title: `创建目录失败: ${createErr.message || createErr.code || '未知错误'}`, 
-							icon: 'none',
-							duration: 3000
-						})
-					})
-				}, (rootErr) => {
-					clearTimeout(timeoutId)
-					uni.hideLoading()
-					uni.showToast({ 
-						title: `访问根目录失败: ${rootErr.message || rootErr.code || '未知错误'}`, 
-						icon: 'none',
-						duration: 3000
-					})
-				})
-				}
-			)
 		},
-		
-		// 复制文件到目标目录（自动处理重名）
 		copyFileToTarget(timeoutId, targetDirEntry, fileName) {
 			plus.io.resolveLocalFileSystemURL(this.resultImage, (sourceEntry) => {
-				// 递归检查文件名，如果重复则递增最后一位数字
 				this.findAvailableFileName(targetDirEntry, fileName, (finalFileName) => {
-					sourceEntry.copyTo(targetDirEntry, finalFileName,
-						(newEntry) => {
-							clearTimeout(timeoutId)
-							uni.hideLoading()
-							
-							// 刷新媒体库，让其他APP能读取到
-							this.scanMediaFile(newEntry.fullPath, () => {
-								uni.showToast({
-									title: '保存成功',
-									icon: 'success'
-								})
-							})
-						},
-					(copyErr) => {
-						clearTimeout(timeoutId)
-						uni.hideLoading()
-						uni.showToast({
-							title: `复制失败: ${copyErr.message || copyErr.code || '未知错误'}`,
-							icon: 'none',
-							duration: 3000
-						})
-					}
-				)
-			})
-		}, (sourceErr) => {
-			clearTimeout(timeoutId)
-			uni.hideLoading()
-			uni.showToast({
-				title: `访问源文件失败: ${sourceErr.message || sourceErr.code || '未知错误'}`,
-				icon: 'none',
-				duration: 3000
-			})
-		})
+					sourceEntry.copyTo(targetDirEntry, finalFileName, (newEntry) => { clearTimeout(timeoutId); uni.hideLoading(); this.scanMediaFile(newEntry.fullPath,()=>{uni.showToast({title:'保存成功',icon:'success'})}) }, (e)=>{clearTimeout(timeoutId);uni.hideLoading();uni.showToast({title:`复制失败: ${e.message||e.code||'未知错误'}`,icon:'none',duration:3000})})
+				})
+			}, (e)=>{clearTimeout(timeoutId);uni.hideLoading();uni.showToast({title:`访问源文件失败: ${e.message||e.code||'未知错误'}`,icon:'none',duration:3000})})
 		},
-		
-		// 查找可用的文件名（处理重名）
 		findAvailableFileName(dirEntry, fileName, callback) {
 			const targetPath = dirEntry.fullPath + fileName
-			
-			plus.io.resolveLocalFileSystemURL(targetPath,
-				(entry) => {
-					// 文件已存在，需要更名
-					const nameWithoutExt = fileName.replace('.jpg', '')
-					const lastChar = nameWithoutExt[nameWithoutExt.length - 1]
-					let newFileName
-					
-					// 如果最后一位是数字，递增它
-					if (!isNaN(parseInt(lastChar))) {
-						const newLastDigit = (parseInt(lastChar) + 1) % 10
-						newFileName = nameWithoutExt.substring(0, nameWithoutExt.length - 1) + newLastDigit + '.jpg'
-					} else {
-						// 最后一位不是数字，添加 _1
-						newFileName = nameWithoutExt + '1.jpg'
-					}
-					
-					// 递归检查新文件名
-					this.findAvailableFileName(dirEntry, newFileName, callback)
-				},
-				(err) => {
-					// 文件不存在，可以使用这个文件名
-					callback(fileName)
-				}
-			)
+			plus.io.resolveLocalFileSystemURL(targetPath, (entry) => {
+				const nameWithoutExt = fileName.replace('.jpg',''), lastChar = nameWithoutExt[nameWithoutExt.length-1]
+				let newFileName = !isNaN(parseInt(lastChar)) ? nameWithoutExt.substring(0,nameWithoutExt.length-1)+(parseInt(lastChar)+1)%10+'.jpg' : nameWithoutExt+'1.jpg'
+				this.findAvailableFileName(dirEntry, newFileName, callback)
+			}, (err) => { callback(fileName) })
 		},
-		
-		// 刷新媒体库（让其他APP能读取到文件）
 		scanMediaFile(filePath, callback) {
-			try {
-				const main = plus.android.runtimeMainActivity()
-				const Intent = plus.android.importClass('android.content.Intent')
-				const Uri = plus.android.importClass('android.net.Uri')
-				const File = plus.android.importClass('java.io.File')
-				
-				// 创建文件对象
-				const file = new File(filePath)
-				const uri = Uri.fromFile(file)
-				
-				// 发送媒体扫描广播
-				const intent = new Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE)
-				intent.setData(uri)
-				main.sendBroadcast(intent)
-				
-				if (callback) {
-					// 延迟一下确保扫描完成
-					setTimeout(callback, 500)
-				}
-			} catch (e) {
-				// 即使扫描失败也执行回调
-				if (callback) {
-					callback()
-				}
-			}
+			try { const main=plus.android.runtimeMainActivity(), Intent=plus.android.importClass('android.content.Intent'), Uri=plus.android.importClass('android.net.Uri'), File=plus.android.importClass('java.io.File'); const file=new File(filePath), uri=Uri.fromFile(file), intent=new Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE); intent.setData(uri); main.sendBroadcast(intent); if(callback) setTimeout(callback,500) } catch(e) { if(callback) callback() }
 		},
 		// #endif
-		
-	// ===== 图片预览相关方法 =====
-	previewImage(url) {
-		this.previewImageUrl = url
-		this.showPreview = true
-		this.resetTransform()
-		
-		// #ifdef H5
-		// 在 H5 环境下，延迟一帧后绑定原生 wheel 事件
-		this.$nextTick(() => {
-			setTimeout(() => {
-				const previewContent = document.querySelector('.preview-content')
-				if (previewContent) {
-					// 移除旧的监听器（如果存在）
-					if (this.nativeWheelHandler) {
-						previewContent.removeEventListener('wheel', this.nativeWheelHandler)
-					}
-					
-					// 创建新的监听器
-					this.nativeWheelHandler = (e) => {
-						e.preventDefault()
-						e.stopPropagation()
-						
-						let newScale
-						if (e.deltaY > 0) {
-							// 向下滚，缩小 10%（相对于基础值 100%）
-							newScale = this.scale - 0.1
-						} else {
-							// 向上滚，放大 10%（相对于基础值 100%）
-							newScale = this.scale + 0.1
-						}
-						
-						// 限制缩放范围：最小为 0.5，最大为 5 倍
-						newScale = Math.max(0.5, Math.min(5, newScale))
-						
-						this.scale = newScale
-						this.lastScale = newScale
-					}
-					
-					// 绑定监听器（passive: false 允许 preventDefault）
-					previewContent.addEventListener('wheel', this.nativeWheelHandler, { passive: false })
-				}
-			}, 100)
-		})
-		// #endif
-		
-	// 获取图片信息，计算初始缩放比例（让图片撑满屏幕）
-	uni.getImageInfo({
-		src: url,
-		success: (res) => {
-			this.imageWidth = res.width
-			this.imageHeight = res.height
-			const imgRatio = this.imageWidth / this.imageHeight
-			
-			// 获取屏幕尺寸
-			const systemInfo = uni.getSystemInfoSync()
-			this.containerWidth = systemInfo.windowWidth
-			this.containerHeight = systemInfo.windowHeight
-			const screenRatio = this.containerWidth / this.containerHeight
-			
-			// 计算初始缩放比例，让图片撑满屏幕（宽度或高度优先）
-			// 如果图片更宽，则按宽度撑满；如果图片更高，则按高度撑满
-			if (imgRatio > screenRatio) {
-				// 图片更宽，按宽度撑满
-				this.initialScale = 1
-			} else {
-				// 图片更高或比例相同，按高度撑满
-				this.initialScale = 1
-			}
-			
-			this.scale = this.initialScale
-			this.lastScale = this.initialScale
-		}
-	})
-	},
-	closePreview() {
-		// #ifdef H5
-		// 移除原生 wheel 事件监听器
-		const previewContent = document.querySelector('.preview-content')
-		if (previewContent && this.nativeWheelHandler) {
-			previewContent.removeEventListener('wheel', this.nativeWheelHandler)
-			this.nativeWheelHandler = null
-		}
-		// #endif
-		
-		this.showPreview = false
-		setTimeout(() => {
-			this.resetTransform()
-		}, 300)
-	},
-		resetTransform() {
-			this.scale = 1
-			this.initialScale = 1
-			this.translateX = 0
-			this.translateY = 0
-			this.lastScale = 1
-			this.lastTranslateX = 0
-			this.lastTranslateY = 0
+		previewImage(url) {
+			this.previewImageUrl = url; this.showPreview = true; this.resetTransform()
+			// #ifdef H5
+			this.$nextTick(()=>{setTimeout(()=>{const pc=document.querySelector('.preview-content'); if(pc){if(this.nativeWheelHandler) pc.removeEventListener('wheel',this.nativeWheelHandler); this.nativeWheelHandler=(e)=>{e.preventDefault();e.stopPropagation();let ns=e.deltaY>0?this.scale-0.1:this.scale+0.1;ns=Math.max(0.5,Math.min(5,ns));this.scale=ns;this.lastScale=ns}; pc.addEventListener('wheel',this.nativeWheelHandler,{passive:false})}},100)})
+			// #endif
+			uni.getImageInfo({src:url,success:(res)=>{this.imageWidth=res.width;this.imageHeight=res.height;const si=uni.getSystemInfoSync();this.containerWidth=si.windowWidth;this.containerHeight=si.windowHeight;this.initialScale=1;this.scale=1;this.lastScale=1}})
 		},
-		
-	// 触摸开始
-	handleTouchStart(e) {
-		if (e.touches.length === 1) {
-			// 单指拖动
-			this.isDragging = true
-			this.startX = e.touches[0].clientX
-			this.startY = e.touches[0].clientY
-		} else if (e.touches.length === 2) {
-			// 双指缩放
-			this.isScaling = true
-			this.isDragging = false
-			const touch1 = e.touches[0]
-			const touch2 = e.touches[1]
-			this.startDistance = this.getDistance(touch1, touch2)
-			this.lastScale = this.scale
-			
-			// 计算双指中心点（相对于容器）
-			this.pinchCenterX = (touch1.clientX + touch2.clientX) / 2
-			this.pinchCenterY = (touch1.clientY + touch2.clientY) / 2
-		}
-	},
-		
-	// 触摸移动
-	handleTouchMove(e) {
-		e.preventDefault()
-		if (e.touches.length === 1 && this.isDragging) {
-			// 单指拖动
-			const deltaX = e.touches[0].clientX - this.startX
-			const deltaY = e.touches[0].clientY - this.startY
-			
-			const newX = this.lastTranslateX + deltaX
-			const newY = this.lastTranslateY + deltaY
-			
-			// 限制边界
-			const limited = this.limitBoundary(newX, newY)
-			this.translateX = limited.x
-			this.translateY = limited.y
-		} else if (e.touches.length === 2 && this.isScaling) {
-			// 双指缩放（以手指中心点为缩放中心）
-			const touch1 = e.touches[0]
-			const touch2 = e.touches[1]
-			const distance = this.getDistance(touch1, touch2)
-			const scaleChange = distance / this.startDistance
-			
-			// 计算新缩放值，限制范围为 initialScale（撑满） 到 5 倍
-			let newScale = this.lastScale * scaleChange
-			newScale = Math.max(this.initialScale, Math.min(5, newScale))
-			
-			// 计算缩放中心相对于容器中心的偏移
-			const centerOffsetX = this.pinchCenterX - this.containerWidth / 2
-			const centerOffsetY = this.pinchCenterY - this.containerHeight / 2
-			
-			// 计算缩放比例变化
-			const scaleRatio = newScale / this.lastScale
-			
-			// 调整位移，使缩放以手指中心点为中心
-			// 公式：新位移 = (旧位移 - 中心偏移) * 缩放比例 + 中心偏移
-			const newTranslateX = (this.lastTranslateX - centerOffsetX) * scaleRatio + centerOffsetX
-			const newTranslateY = (this.lastTranslateY - centerOffsetY) * scaleRatio + centerOffsetY
-			
-			this.scale = newScale
-			this.translateX = newTranslateX
-			this.translateY = newTranslateY
-		}
-	},
-		
-	// 触摸结束
-	handleTouchEnd(e) {
-		if (e.touches.length === 0) {
-			this.isDragging = false
-			this.isScaling = false
-			
-			// 检查是否需要回弹
-			this.checkAndSpringBack()
-		} else if (e.touches.length === 1) {
-			// 从双指变为单指
-			this.isScaling = false
-			this.checkAndSpringBack()
-		}
-	},
-		
-		// 鼠标按下
-		handleMouseDown(e) {
-			this.isDragging = true
-			this.startX = e.clientX
-			this.startY = e.clientY
+		closePreview() {
+			// #ifdef H5
+			const pc=document.querySelector('.preview-content'); if(pc&&this.nativeWheelHandler){pc.removeEventListener('wheel',this.nativeWheelHandler);this.nativeWheelHandler=null}
+			// #endif
+			this.showPreview=false; setTimeout(()=>{this.resetTransform()},300)
 		},
-		
-		// 鼠标移动
-		handleMouseMove(e) {
-			if (!this.isDragging) return
-			
-			const deltaX = e.clientX - this.startX
-			const deltaY = e.clientY - this.startY
-			
-			const newX = this.lastTranslateX + deltaX
-			const newY = this.lastTranslateY + deltaY
-			
-			// 限制边界
-			const limited = this.limitBoundary(newX, newY)
-			this.translateX = limited.x
-			this.translateY = limited.y
+		resetTransform() { this.scale=1;this.initialScale=1;this.translateX=0;this.translateY=0;this.lastScale=1;this.lastTranslateX=0;this.lastTranslateY=0 },
+		handleTouchStart(e) { if(e.touches.length===1){this.isDragging=true;this.startX=e.touches[0].clientX;this.startY=e.touches[0].clientY} else if(e.touches.length===2){this.isScaling=true;this.isDragging=false;const t1=e.touches[0],t2=e.touches[1];this.startDistance=this.getDistance(t1,t2);this.lastScale=this.scale;this.pinchCenterX=(t1.clientX+t2.clientX)/2;this.pinchCenterY=(t1.clientY+t2.clientY)/2} },
+		handleTouchMove(e) { e.preventDefault(); if(e.touches.length===1&&this.isDragging){const dx=e.touches[0].clientX-this.startX,dy=e.touches[0].clientY-this.startY;const l=this.limitBoundary(this.lastTranslateX+dx,this.lastTranslateY+dy);this.translateX=l.x;this.translateY=l.y} else if(e.touches.length===2&&this.isScaling){const t1=e.touches[0],t2=e.touches[1],distance=this.getDistance(t1,t2),sc=distance/this.startDistance;let ns=this.lastScale*sc;ns=Math.max(this.initialScale,Math.min(5,ns));const cox=this.pinchCenterX-this.containerWidth/2,coy=this.pinchCenterY-this.containerHeight/2,sr=ns/this.lastScale;this.scale=ns;this.translateX=(this.lastTranslateX-cox)*sr+cox;this.translateY=(this.lastTranslateY-coy)*sr+coy} },
+		handleTouchEnd(e) { if(e.touches.length===0){this.isDragging=false;this.isScaling=false;this.checkAndSpringBack()} else if(e.touches.length===1){this.isScaling=false;this.checkAndSpringBack()} },
+		handleMouseDown(e) { this.isDragging=true;this.startX=e.clientX;this.startY=e.clientY },
+		handleMouseMove(e) { if(!this.isDragging)return;const dx=e.clientX-this.startX,dy=e.clientY-this.startY;const l=this.limitBoundary(this.lastTranslateX+dx,this.lastTranslateY+dy);this.translateX=l.x;this.translateY=l.y },
+		handleMouseUp(e) { if(this.isDragging){this.isDragging=false;this.checkAndSpringBack()} },
+		handleWheel(e) { console.log('handleWheel 被调用（非 H5 原生绑定）') },
+		getDistance(t1,t2) { const dx=t1.clientX-t2.clientX,dy=t1.clientY-t2.clientY;return Math.sqrt(dx*dx+dy*dy) },
+		checkAndSpringBack() {
+			let need=false,ts=this.scale,tx=this.translateX,ty=this.translateY
+			if(this.scale<this.initialScale){ts=this.initialScale;need=true}
+			const sw=this.imageWidth*ts,sh=this.imageHeight*ts
+			if(sw>this.containerWidth){const mx=(sw-this.containerWidth)/2;if(this.translateX>mx){tx=mx;need=true}else if(this.translateX<-mx){tx=-mx;need=true}}else{if(this.translateX!==0){tx=0;need=true}}
+			if(sh>this.containerHeight){const my=(sh-this.containerHeight)/2;if(this.translateY>my){ty=my;need=true}else if(this.translateY<-my){ty=-my;need=true}}else{if(this.translateY!==0){ty=0;need=true}}
+			if(need) this.springBack(ts,tx,ty); else {this.lastScale=this.scale;this.lastTranslateX=this.translateX;this.lastTranslateY=this.translateY}
 		},
-		
-	// 鼠标松开
-	handleMouseUp(e) {
-		if (this.isDragging) {
-			this.isDragging = false
-			// 检查是否需要回弹
-			this.checkAndSpringBack()
+		springBack(targetScale,targetX,targetY) {
+			this.isSpringBack=true; const ss=this.scale,sx=this.translateX,sy=this.translateY,duration=300,start=Date.now()
+			const animate=()=>{const p=Math.min((Date.now()-start)/duration,1),ep=1-Math.pow(1-p,3);this.scale=ss+(targetScale-ss)*ep;this.translateX=sx+(targetX-sx)*ep;this.translateY=sy+(targetY-sy)*ep;if(p<1){requestAnimationFrame(animate)}else{this.scale=targetScale;this.translateX=targetX;this.translateY=targetY;this.isSpringBack=false;this.lastScale=this.scale;this.lastTranslateX=this.translateX;this.lastTranslateY=this.translateY}}
+			requestAnimationFrame(animate)
+		},
+		limitBoundary(x,y) {
+			const sw=this.imageWidth*this.scale,sh=this.imageHeight*this.scale
+			let lx=x,ly=y
+			if(sw>this.containerWidth){const mx=(sw-this.containerWidth)/2;lx=Math.max(-mx,Math.min(mx,x))}else{lx=0}
+			if(sh>this.containerHeight){const my=(sh-this.containerHeight)/2;ly=Math.max(-my,Math.min(my,y))}else{ly=0}
+			return {x:lx,y:ly}
 		}
-	},
-		
-	// 鼠标滚轮缩放（已废弃，H5 环境使用原生事件绑定）
-	// 保留此方法以兼容其他平台（如果需要）
-	handleWheel(e) {
-		// 此方法在 H5 环境下不会被调用，因为我们直接绑定了原生事件
-		// 其他平台（小程序等）可能仍需要此方法
-		console.log('handleWheel 被调用（非 H5 原生绑定）')
-	},
-		
-	// 计算两点间距离
-	getDistance(touch1, touch2) {
-		const dx = touch1.clientX - touch2.clientX
-		const dy = touch1.clientY - touch2.clientY
-		return Math.sqrt(dx * dx + dy * dy)
-	},
-	
-	// 检查并执行回弹动画
-	checkAndSpringBack() {
-		let needSpringBack = false
-		let targetScale = this.scale
-		let targetX = this.translateX
-		let targetY = this.translateY
-		
-		// 1. 检查缩放是否小于最小值
-		if (this.scale < this.initialScale) {
-			targetScale = this.initialScale
-			needSpringBack = true
-		}
-		
-		// 2. 使用目标缩放计算边界，检查位移是否超出
-		const scaledWidth = this.imageWidth * targetScale
-		const scaledHeight = this.imageHeight * targetScale
-		
-		// 水平方向检查
-		if (scaledWidth > this.containerWidth) {
-			const maxX = (scaledWidth - this.containerWidth) / 2
-			if (this.translateX > maxX) {
-				targetX = maxX
-				needSpringBack = true
-			} else if (this.translateX < -maxX) {
-				targetX = -maxX
-				needSpringBack = true
-			}
-		} else {
-			if (this.translateX !== 0) {
-				targetX = 0
-				needSpringBack = true
-			}
-		}
-		
-		// 垂直方向检查
-		if (scaledHeight > this.containerHeight) {
-			const maxY = (scaledHeight - this.containerHeight) / 2
-			if (this.translateY > maxY) {
-				targetY = maxY
-				needSpringBack = true
-			} else if (this.translateY < -maxY) {
-				targetY = -maxY
-				needSpringBack = true
-			}
-		} else {
-			if (this.translateY !== 0) {
-				targetY = 0
-				needSpringBack = true
-			}
-		}
-		
-		// 3. 如果需要回弹，执行动画
-		if (needSpringBack) {
-			this.springBack(targetScale, targetX, targetY)
-		} else {
-			// 不需要回弹，直接更新 last 值
-			this.lastScale = this.scale
-			this.lastTranslateX = this.translateX
-			this.lastTranslateY = this.translateY
-		}
-	},
-	
-	// 执行回弹动画
-	springBack(targetScale, targetX, targetY) {
-		this.isSpringBack = true
-		
-		const startScale = this.scale
-		const startX = this.translateX
-		const startY = this.translateY
-		
-		const duration = 300 // 动画时长（毫秒）
-		const startTime = Date.now()
-		
-		const animate = () => {
-			const currentTime = Date.now()
-			const elapsed = currentTime - startTime
-			const progress = Math.min(elapsed / duration, 1)
-			
-			// 使用缓动函数（easeOutCubic）
-			const easeProgress = 1 - Math.pow(1 - progress, 3)
-			
-			// 插值计算当前值
-			this.scale = startScale + (targetScale - startScale) * easeProgress
-			this.translateX = startX + (targetX - startX) * easeProgress
-			this.translateY = startY + (targetY - startY) * easeProgress
-			
-			if (progress < 1) {
-				requestAnimationFrame(animate)
-			} else {
-				// 动画结束，确保精确到达目标值
-				this.scale = targetScale
-				this.translateX = targetX
-				this.translateY = targetY
-				this.isSpringBack = false
-				
-				// 更新 last 值
-				this.lastScale = this.scale
-				this.lastTranslateX = this.translateX
-				this.lastTranslateY = this.translateY
-			}
-		}
-		
-		requestAnimationFrame(animate)
-	},
-	
-	// 限制边界（确保至少两个边固定）
-	limitBoundary(x, y) {
-		// 计算图片缩放后的实际尺寸
-		const scaledWidth = this.imageWidth * this.scale
-		const scaledHeight = this.imageHeight * this.scale
-		
-		let limitedX = x
-		let limitedY = y
-		
-		// 水平方向边界限制
-		if (scaledWidth > this.containerWidth) {
-			// 图片宽度大于容器，可以拖动，但不能完全拖出
-			const maxX = (scaledWidth - this.containerWidth) / 2
-			limitedX = Math.max(-maxX, Math.min(maxX, x))
-		} else {
-			// 图片宽度小于容器，不允许拖动，保持居中
-			limitedX = 0
-		}
-		
-		// 垂直方向边界限制
-		if (scaledHeight > this.containerHeight) {
-			// 图片高度大于容器，可以拖动，但不能完全拖出
-			const maxY = (scaledHeight - this.containerHeight) / 2
-			limitedY = Math.max(-maxY, Math.min(maxY, y))
-		} else {
-			// 图片高度小于容器，不允许拖动，保持居中
-			limitedY = 0
-		}
-		
-		return {
-			x: limitedX,
-			y: limitedY
-		}
-	}
 	}
 }
 </script>
 
 <style lang="scss" scoped>
-/* 导入自定义字体 */
 @font-face {
 	font-family: 'SourceHanSerifCN';
 	src: url('@/static/fonts/SourceHanSerifCN-Regular.ttf') format('truetype');
@@ -1939,314 +767,340 @@ export default {
 	font-display: swap;
 }
 
+$bg: #f5f5f7;
+$card: #ffffff;
+$text: #1c1c1e;
+$text-secondary: #8e8e93;
+$text-muted: #c7c7cc;
+$border: #e5e5ea;
+$accent: #7c5cfc;
+$danger: #ff3b30;
+$radius: 12px;
+$radius-lg: 16px;
+$shadow: 0 1px 8px rgba(0,0,0,0.04);
+
 .page {
 	min-height: 100vh;
-	background: linear-gradient(180deg, #f5f7fa 0%, #c3cfe2 100%);
+	background: $bg;
 }
 
-.content {
-	min-height: 100vh;
-	padding: 40rpx;
-	padding-bottom: 140rpx;
-	box-sizing: border-box;
-}
-
-.upload-section,
-.form-section,
-.generate-section,
-.result-section {
-	margin-bottom: 40rpx;
-}
-
-.section-title {
-	font-size: 32rpx;
-	font-weight: 700;
-	color: #333;
-	margin-bottom: 20rpx;
+/* ===== Header ===== */
+.watermark-header {
 	display: flex;
 	align-items: center;
+	justify-content: space-between;
+	padding: 12px 16px 0;
 }
 
-.section-title::before {
-	content: '';
-	width: 6rpx;
-	height: 32rpx;
-	background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-	border-radius: 3rpx;
-	margin-right: 12rpx;
+.header-left {
+	display: flex;
+	align-items: center;
+	gap: 8px;
 }
 
-/* 上传区域 */
+.back-btn {
+	width: 32px; height: 32px;
+	display: flex; align-items: center; justify-content: center;
+	color: $text;
+	background: none;
+	border: none;
+	opacity: 0.6;
+}
+.back-btn:active { opacity: 1; }
+
+.header-title {
+	font-size: 18px;
+	font-weight: 700;
+	color: $text;
+}
+
+.header-close {
+	width: 32px; height: 32px;
+	border-radius: 50%;
+	background: $card;
+	display: flex; align-items: center; justify-content: center;
+	color: $text-secondary;
+	box-shadow: $shadow;
+}
+.header-close:active { background: $border; }
+
+/* ===== Content ===== */
+.content {
+	padding: 16px;
+	padding-bottom: 40px;
+}
+
+/* ===== Upload Card ===== */
+.upload-card {
+	background: $card;
+	border-radius: $radius-lg;
+	padding: 24px;
+	margin-bottom: 16px;
+	box-shadow: $shadow;
+}
+
 .upload-area {
-	background: white;
-	border-radius: 24rpx;
-	padding: 120rpx 40rpx;
+	border: 1.5px dashed $border;
+	border-radius: $radius;
+	padding: 48px 20px;
 	text-align: center;
-	box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.08);
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 12px;
+}
+
+.upload-area:active {
+	background: #f2effe;
+	border-color: $accent;
 }
 
 .upload-icon {
-	font-size: 80rpx;
-	display: block;
-	margin-bottom: 20rpx;
+	width: 56px; height: 56px;
+	border-radius: $radius;
+	background: $accent;
+	display: flex; align-items: center; justify-content: center;
+	color: white;
 }
 
-.upload-text {
-	font-size: 28rpx;
-	color: #999;
+.upload-title {
+	font-size: 16px;
+	font-weight: 600;
+	color: $text;
 }
 
-.image-preview {
-	background: white;
-	border-radius: 24rpx;
-	padding: 20rpx;
-	box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.08);
+.upload-hint {
+	font-size: 13px;
+	color: $text-secondary;
+}
+
+.image-preview, .images-preview {
+	border: 1.5px dashed $border;
+	border-radius: $radius;
+	padding: 12px;
 }
 
 .preview-img {
 	width: 100%;
-	max-height: 500rpx;
-	border-radius: 16rpx;
-}
-
-.images-preview {
-	background: white;
-	border-radius: 24rpx;
-	padding: 20rpx;
-	box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.08);
+	max-height: 200px;
+	border-radius: 8px;
+	object-fit: contain;
+	background: $bg;
+	cursor: pointer;
 }
 
 .images-count {
-	font-size: 28rpx;
-	color: #333;
+	display: block;
 	text-align: center;
-	padding: 40rpx 0;
+	padding: 24px 0;
+	font-size: 14px;
+	color: $text-secondary;
 }
 
 .image-actions {
 	display: flex;
-	gap: 20rpx;
-	margin-top: 20rpx;
+	gap: 16px;
+	margin-top: 16px;
+	justify-content: center;
 }
 
-.action-btn {
-	flex: 1;
-	background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-	color: white;
-	padding: 20rpx;
-	border-radius: 12rpx;
-	text-align: center;
-	font-size: 28rpx;
-}
-
-.action-btn.delete {
-	background: #ff6b6b;
-}
-
-/* 表单输入 - 最简实现 */
-.simple-input {
-	width: 100%;
-	height: 90rpx;
-	background: #ffffff;
-	border: 2rpx solid #dddddd;
-	border-radius: 12rpx;
-	padding: 0 24rpx;
-	font-size: 28rpx;
-	color: #333333;
-	box-sizing: border-box;
-}
-
-.delete-icon {
-	color: #ff6b6b;
-	font-size: 40rpx;
-	width: 50rpx;
-	text-align: center;
-}
-
-/* 时间选择器 */
-.time-selector {
+.action-link {
 	display: flex;
-	gap: 20rpx;
+	align-items: center;
+	gap: 6px;
+	font-size: 14px;
+	font-weight: 500;
+	background: none;
+	border: none;
+	color: $text-secondary;
+}
+.action-link.primary { color: $accent; }
+.action-link.danger { color: $danger; }
+.action-link:active { opacity: 0.6; }
+
+/* ===== Section Title ===== */
+.section-title {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	font-size: 14px;
+	font-weight: 600;
+	color: $text;
+	margin-bottom: 10px;
+	margin-left: 4px;
+}
+.section-title::before {
+	content: '';
+	width: 6px; height: 6px;
+	background: $accent;
+	border-radius: 50%;
 }
 
-.time-item {
+/* ===== Form Card ===== */
+.form-card {
+	background: $card;
+	border-radius: $radius;
+	padding: 14px 16px;
+	margin-bottom: 16px;
+	box-shadow: $shadow;
+	border: 1px solid $border;
+}
+
+.form-input {
+	width: 100%;
+	height: 28px;
+	border: none;
+	outline: none;
+	font-size: 16px;
+	font-weight: 500;
+	color: $text;
+	font-family: inherit;
+	background: transparent;
+}
+.form-input::placeholder { color: $text-muted; }
+
+/* ===== Time Row ===== */
+.time-row {
+	display: flex;
+	gap: 10px;
+	margin-bottom: 16px;
+}
+
+.time-box {
 	flex: 1;
-	background: white;
-	border-radius: 16rpx;
-	padding: 24rpx 30rpx;
-	box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.08);
+	background: $card;
+	border-radius: $radius;
+	padding: 12px 14px;
+	border: 1px solid $border;
 	display: flex;
 	flex-direction: column;
-	gap: 10rpx;
+	justify-content: center;
+	min-height: 56px;
 }
+.time-box.date-box { flex: 1.6; }
+.time-box.small { flex: 0 0 64px; text-align: center; }
+.time-box:active { background: #f2effe; border-color: $accent; }
+.time-box .time-value { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 .time-label {
-	font-size: 24rpx;
-	color: #999;
+	display: block;
+	font-size: 12px;
+	color: $text-secondary;
+	margin-bottom: 4px;
 }
 
 .time-value {
-	font-size: 28rpx;
-	color: #333;
-	font-weight: 500;
+	display: block;
+	font-size: 15px;
+	font-weight: 600;
+	color: $text;
 }
 
-.sync-time-btn {
+.sync-btn {
+	width: 56px;
 	flex-shrink: 0;
+	display: flex; align-items: center; justify-content: center;
+	background: $card;
+	border: 1px solid $border;
+	border-radius: $radius;
+	color: $text;
+	min-height: 56px;
+	align-self: stretch;
+}
+.sync-btn:active { opacity: 0.6; transform: scale(0.95); }
+
+/* ===== Multi Row ===== */
+.multi-row {
 	display: flex;
-	align-items: center;
-	justify-content: center;
-	padding: 22rpx 24rpx;
-	background: #ffffff;
-	border: none;
-	border-radius: 16rpx;
-	box-shadow: 0 2rpx 10rpx rgba(102, 126, 234, 0.10);
-	transition: all 0.18s ease;
+	gap: 10px;
+	margin-bottom: 16px;
 }
 
-.sync-time-btn:active {
-	background: #f2f3ff;
-	box-shadow: 0 1rpx 4rpx rgba(102, 126, 234, 0.06);
-	transform: scale(0.96);
-}
+.multi-col { flex: 1; }
 
-.sync-time-icon {
-	font-size: 40rpx;
-	line-height: 1;
-	color: #5b6abf;
+.multi-box {
+	background: $card;
+	border-radius: $radius;
+	padding: 12px 14px;
+	border: 1px solid $border;
 }
-
-/* 多图模式行 */
-.multi-image-row {
-	display: flex;
-	gap: 20rpx;
-}
-
-.multi-image-selector {
-	width: 50%;
-}
-
-.time-span-input {
-	width: 50%;
-}
+.multi-box .time-value { font-weight: 500; }
 
 .time-span-input-field {
 	width: 100%;
 	background: transparent;
 	border: none;
-	font-size: 28rpx;
-	color: #333;
+	font-size: 15px;
+	color: $text;
 	font-weight: 500;
 	padding: 0;
 	margin: 0;
 	line-height: 1.4;
 }
 
-/* 生成按钮 */
+/* ===== Generate Button ===== */
 .generate-btn {
 	width: 100%;
-	background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-	color: white;
-	padding: 28rpx;
-	border-radius: 16rpx;
-	font-size: 32rpx;
-	font-weight: 600;
+	padding: 16px;
 	border: none;
+	border-radius: $radius;
+	background: #1c1c1e;
+	color: white;
+	font-size: 16px;
+	font-weight: 600;
+	font-family: inherit;
+	margin-bottom: 16px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 6px;
+}
+.generate-btn:active:not(.disabled) { opacity: 0.8; transform: scale(0.99); }
+.generate-btn.disabled { opacity: 0.4; }
+
+/* ===== Result ===== */
+.result-card {
+	background: $card;
+	border-radius: $radius-lg;
+	padding: 16px;
+	margin-top: 16px;
+	box-shadow: $shadow;
 }
 
-.generate-btn.disabled {
-	opacity: 0.5;
-	cursor: not-allowed;
-	/* 不阻止点击，让用户能看到提示 */
-}
-
-.generate-btn:not(.disabled) {
+.result-img {
+	width: 100%;
+	border-radius: $radius;
 	cursor: pointer;
 }
 
-/* 结果区域 */
-.result-img {
-	width: 100%;
-	border-radius: 16rpx;
-	box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.08);
-}
-
-.result-actions {
-	margin-top: 30rpx;
-}
-
-.save-btn {
-	width: 100%;
-	background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
-	color: white;
-	padding: 28rpx;
-	border-radius: 16rpx;
-	font-size: 32rpx;
-	font-weight: 600;
-	border: none;
-}
-
-/* 已移除自定义时间选择弹窗样式（改用 picker mode=time） */
-
-/* 图片预览弹窗样式 */
+/* ===== Preview Modal ===== */
 .image-preview-modal {
-	position: fixed;
-	top: 0;
-	left: 0;
-	right: 0;
-	bottom: 0;
-	background: rgba(0, 0, 0, 0.9);
+	position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+	background: rgba(0,0,0,0.92);
 	z-index: 9999;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	animation: fadeIn 0.3s ease;
+	display: flex; align-items: center; justify-content: center;
+	animation: fadeIn 0.25s ease;
 }
 
-@keyframes fadeIn {
-	from {
-		opacity: 0;
-	}
-	to {
-		opacity: 1;
-	}
-}
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
 .preview-container {
-	width: 100%;
-	height: 100%;
+	width: 100%; height: 100%;
 	position: relative;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	transform: scale(0.8);
-	opacity: 0;
+	display: flex; align-items: center; justify-content: center;
+	transform: scale(0.9); opacity: 0;
 	transition: all 0.3s ease;
 }
-
-.preview-container.show {
-	transform: scale(1);
-	opacity: 1;
-}
+.preview-container.show { transform: scale(1); opacity: 1; }
 
 .preview-content {
-	width: 100%;
-	height: 100%;
-	position: relative;
-	overflow: hidden;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	cursor: grab;
-}
-
-.preview-content:active {
-	cursor: grabbing;
+	width: 100%; height: 100%;
+	position: relative; overflow: hidden;
+	display: flex; align-items: center; justify-content: center;
 }
 
 .preview-image {
-	width: 100%;
-	height: 100%;
+	width: 100%; height: 100%;
 	object-fit: contain;
 	transform-origin: center center;
 	user-select: none;
@@ -2254,40 +1108,15 @@ export default {
 	pointer-events: none;
 }
 
-.close-btn {
+.preview-close-btn {
 	position: absolute;
-	top: 40rpx;
-	right: 40rpx;
-	width: 80rpx;
-	height: 80rpx;
-	background: rgba(255, 255, 255, 0.2);
+	top: 48px; right: 20px;
+	width: 40px; height: 40px;
+	background: rgba(255,255,255,0.15);
 	border-radius: 50%;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	font-size: 48rpx;
+	display: flex; align-items: center; justify-content: center;
 	color: white;
-	cursor: pointer;
-	transition: all 0.3s ease;
-	backdrop-filter: blur(10px);
-	-webkit-backdrop-filter: blur(10px);
+	backdrop-filter: blur(8px);
 }
-
-.close-btn:hover {
-	background: rgba(255, 255, 255, 0.3);
-	transform: rotate(90deg);
-}
-
-/* 给预览图片添加点击样式 */
-.preview-img,
-.result-img {
-	cursor: pointer;
-	transition: transform 0.2s ease;
-}
-
-.preview-img:hover,
-.result-img:hover {
-	transform: scale(1.02);
-}
-
+.preview-close-btn:active { background: rgba(255,255,255,0.25); transform: scale(0.9); }
 </style>

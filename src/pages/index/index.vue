@@ -5,78 +5,87 @@
 		
 		<!-- 头部区域 -->
 		<view class="header">
-			<!-- 扫一扫按钮 -->
-			<view class="scan-btn" @click="handleScan">
-				<text class="scan-icon">📷</text>
-			</view>
-			<!-- 设置按钮 -->
-			<view class="settings-btn" @click="openSettingsModal">
-				<text class="settings-icon">⚙️</text>
-			</view>
-			<view class="user-info">
-				<view class="avatar">👤</view>
-				<text class="user-name">{{ userName }}</text>
-				<text class="user-desc">个人应用中心</text>
+			<view class="header-title">WBTools</view>
+			<view class="header-actions">
+				<view class="icon-btn" @click="handleScan">
+					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:20px;height:20px;">
+						<path d="M3 7V5a2 2 0 0 1 2-2h2"/>
+						<path d="M17 3h2a2 2 0 0 1 2 2v2"/>
+						<path d="M21 17v2a2 2 0 0 1-2 2h-2"/>
+						<path d="M7 21H5a2 2 0 0 1-2-2v-2"/>
+						<rect x="9" y="9" width="6" height="6" rx="1"/>
+					</svg>
+				</view>
+				<view class="icon-btn" @click="openSettingsModal">
+					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:20px;height:20px;">
+						<circle cx="12" cy="12" r="3"/>
+						<path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+					</svg>
+				</view>
 			</view>
 		</view>
 
-		<!-- 内容区域 -->
-		<scroll-view class="content" scroll-y>
-			<!-- 实用工具 -->
-			<view class="apps-section">
-				<view class="section-title">实用工具</view>
-				<view class="apps-grid">
-					<view 
-						class="app-card" 
-						:class="{ disabled: app.disabled }"
-						v-for="(app, index) in utilityApps" 
-						:key="index"
-						@click="handleAppClick(app)"
-					>
-						<view class="app-icon" :class="'icon-' + (index + 1)">{{ app.icon }}</view>
-						<text class="app-name">{{ app.name }}</text>
-						<text class="app-desc">{{ app.desc }}</text>
-					</view>
-				</view>
-			</view>
-		</scroll-view>
-
-		<!-- 底部导航 -->
-		<view class="bottom-nav">
-			<view 
-				class="nav-item" 
-				:class="{ active: currentTab === 0 }"
-				@click="switchTab(0)"
-			>
-				<view class="nav-icon">🏠</view>
-				<text class="nav-label">首页</text>
-			</view>
-			<view 
-				class="nav-item" 
-				:class="{ active: currentTab === 1 }"
-				@click="switchTab(1)"
-			>
-				<view class="nav-icon">📱</view>
-				<text class="nav-label">应用</text>
-			</view>
-			<view 
-				class="nav-item" 
-				:class="{ active: currentTab === 2 }"
-				@click="switchTab(2)"
-			>
-				<view class="nav-icon">👤</view>
-				<text class="nav-label">我的</text>
+		<!-- Hero 区域 -->
+		<view class="hero">
+			<text class="hero-title">打工人的</text>
+			<text class="hero-title">日常工具包</text>
+			<view class="hero-tags">
+				<view class="tag"><text class="tag-icon">⚡</text><text>高效</text></view>
+				<view class="tag"><text class="tag-icon">✨</text><text>简洁</text></view>
+				<view class="tag"><text class="tag-icon">🔧</text><text>实用</text></view>
 			</view>
 		</view>
 
-		<!-- 送水查询弹窗 -->
-		<view class="scan-modal" v-if="showWaterModal" @click="closeWaterModal">
-			<view class="scan-modal-content" @click.stop>
-				<view class="scan-modal-header water-modal-header">
-					<text class="scan-modal-title">🚰 今日送水情况</text>
-					<view class="scan-modal-close" @click="closeWaterModal">✕</view>
+		<!-- 搜索框 -->
+		<view class="search-box">
+			<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px;color:#a0a0b8;flex-shrink:0;">
+				<circle cx="11" cy="11" r="8"/>
+				<line x1="21" y1="21" x2="16.65" y2="16.65"/>
+			</svg>
+			<input class="search-input" type="text" placeholder="搜索工具..." @input="onSearchInput" />
+		</view>
+
+		<!-- 工具列表 -->
+		<view class="tools-list">
+			<view 
+				v-for="(app, index) in utilityApps" 
+				:key="index"
+				class="tool-card"
+				:class="{ hidden: filteredApps && !filteredApps.includes(index) }"
+				@click="handleAppClick(app)"
+			>
+				<view class="tool-icon" :class="['tool-icon-' + (index + 1)]">
+					<svg v-if="index === 0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:24px;height:24px;color:white;">
+						<rect x="3" y="3" width="18" height="18" rx="2"/>
+						<circle cx="8.5" cy="8.5" r="1.5"/>
+						<path d="M21 15l-5-5L5 21"/>
+					</svg>
+					<svg v-if="index === 1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:24px;height:24px;color:white;">
+						<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+					</svg>
+					<svg v-if="index === 2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:24px;height:24px;color:white;">
+						<path d="M12 2L2 7l10 5 10-5-10-5z"/>
+						<path d="M2 17l10 5 10-5"/>
+						<path d="M2 12l10 5 10-5"/>
+					</svg>
 				</view>
-				<view class="scan-modal-body">
+				<view class="tool-content">
+					<text class="tool-name">{{ app.name }}</text>
+					<text class="tool-desc">{{ app.desc }}</text>
+				</view>
+				<view class="tool-arrow">
+					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px;">
+						<polyline points="9 18 15 12 9 6"/>
+					</svg>
+				</view>
+			</view>
+		</view>
+
+		<!-- 送水查询 - 底部弹窗 -->
+		<view class="bottom-sheet-overlay" v-if="showWaterModal" @click="closeWaterModal">
+			<view class="bottom-sheet" @click.stop>
+				<view class="sheet-handle"></view>
+				<scroll-view class="sheet-body" scroll-y>
 					<!-- 查询日期 -->
 					<view class="water-date">
 						<text class="water-date-label">查询日期：</text>
@@ -84,8 +93,12 @@
 					</view>
 					
 					<!-- 总送水桶数 -->
-					<view class="water-total">
-						<view class="water-total-icon">🪣</view>
+					<view class="water-total-card">
+						<view class="water-total-icon">
+							<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:32px;height:32px;">
+								<path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>
+							</svg>
+						</view>
 						<view class="water-total-info">
 							<text class="water-total-number">{{ waterData.total_buckets }}</text>
 							<text class="water-total-label">今日白班总送水桶数</text>
@@ -93,12 +106,10 @@
 					</view>
 					
 					<!-- 分割线 -->
-					<view class="water-divider"></view>
+					<view class="sheet-divider"></view>
 					
 					<!-- 送水人列表 -->
-					<view class="water-section-title">
-						<text>📋 送水人员详情</text>
-					</view>
+					<view class="water-section-title">送水人员详情</view>
 					
 					<view class="water-deliverer-list">
 						<view 
@@ -130,10 +141,7 @@
 					<view class="water-empty" v-if="waterData.deliverers.length === 0">
 						<text>暂无送水数据</text>
 					</view>
-				</view>
-				<view class="scan-modal-footer">
-					<view class="scan-modal-btn cancel-btn" @click="closeWaterModal">关闭</view>
-				</view>
+				</scroll-view>
 			</view>
 		</view>
 		
@@ -142,30 +150,31 @@
 			<view class="scan-modal-content" @click.stop>
 				<view class="scan-modal-header">
 					<text class="scan-modal-title">扫码结果</text>
-					<view class="scan-modal-close" @click="closeScanModal">✕</view>
+					<view class="scan-modal-close" @click="closeScanModal">
+						<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px;">
+							<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+						</svg>
+					</view>
 				</view>
 				<view class="scan-modal-body">
-					<!-- 如果解密成功，显示格式化后的数据 -->
 					<view v-if="scanResult.isEncrypted && scanResult.decrypted" class="decrypted-content">
 						<view class="decrypted-header">
-							<text class="decrypted-title">🔓 已解密的水印信息</text>
+							<text class="decrypted-title">已解密的水印信息</text>
 						</view>
 						<view 
 							class="decrypted-item" 
 							v-for="(item, index) in formatDecryptedData(scanResult.decrypted)" 
 							:key="index"
 						>
-							<view class="decrypted-item-label">{{ item.label }}：</view>
+							<text class="decrypted-item-label">{{ item.label }}：</text>
 							<text class="decrypted-item-value" :class="{ 'location-value': item.label === '定位' }" selectable>{{ item.value }}</text>
 						</view>
 					</view>
 					
-					<!-- 如果是加密格式但解密失败，显示提示 -->
 					<view v-else-if="scanResult.isEncrypted && !scanResult.decrypted" class="decrypt-failed">
-						<text class="decrypt-failed-text">⚠️ 解密失败，显示原始内容</text>
+						<text class="decrypt-failed-text">解密失败，显示原始内容</text>
 					</view>
 					
-					<!-- 原始内容显示 -->
 					<view 
 						class="scan-result-content" 
 						:class="{ 'scan-content-clickable': !scanResult.isEncrypted && isUrl(scanResult.result) }"
@@ -182,26 +191,18 @@
 				</view>
 				<view class="scan-modal-footer">
 					<view class="scan-modal-btn cancel-btn" @click="closeScanModal">关闭</view>
-					<view 
-						class="scan-modal-btn copy-btn" 
-						@click="copyScanResult"
-					>
-						复制内容
-					</view>
+					<view class="scan-modal-btn copy-btn" @click="copyScanResult">复制内容</view>
 				</view>
 			</view>
 		</view>
-			<!-- 设置弹窗 -->
-		<view class="scan-modal" v-if="showSettingsModal" @click="closeSettingsModal">
-			<view class="scan-modal-content" @click.stop>
-				<view class="scan-modal-header settings-modal-header">
-					<text class="scan-modal-title">⚙️ 设置</text>
-					<view class="scan-modal-close" @click="closeSettingsModal">✕</view>
-				</view>
-				<view class="scan-modal-body">
-					<!-- 版本信息 -->
+
+		<!-- 设置 - 底部弹窗 -->
+		<view class="bottom-sheet-overlay" v-if="showSettingsModal" @click="closeSettingsModal">
+			<view class="bottom-sheet" @click.stop>
+				<view class="sheet-handle"></view>
+				<scroll-view class="sheet-body" scroll-y>
 					<view class="settings-section">
-						<view class="settings-section-title">📱 应用信息</view>
+						<text class="settings-section-title">应用信息</text>
 						<view class="settings-info-item">
 							<text class="settings-info-label">应用名称</text>
 							<text class="settings-info-value">牛马工具箱</text>
@@ -215,21 +216,15 @@
 							<text class="settings-info-value">{{ localVersionCode }}</text>
 						</view>
 					</view>
-					
-					<!-- 检查更新按钮 -->
 					<view class="settings-section">
 						<view class="settings-update-btn" @click="checkForUpdateManually">
-							<text class="settings-update-btn-icon">🔄</text>
 							<text class="settings-update-btn-text">检查更新</text>
 						</view>
 					</view>
-				</view>
-				<view class="scan-modal-footer">
-					<view class="scan-modal-btn cancel-btn" @click="closeSettingsModal">关闭</view>
-				</view>
+				</scroll-view>
 			</view>
 		</view>
-		</view>
+	</view>
 </template>
 
 <script>
@@ -254,27 +249,25 @@ export default {
 			scanResult: {
 				result: '',
 				scanType: '',
-				decrypted: null, // 解密后的数据
-				isEncrypted: false // 是否为加密的二维码
+				decrypted: null,
+				isEncrypted: false
 			},
-			encryptionKey: 'e373d090928170eb', // 默认加密key
+			encryptionKey: 'e373d090928170eb',
 			showSettingsModal: false,
 			localVersionName: '',
 			localVersionCode: '',
 			utilityApps: [
-				{ icon: '🖼️', name: '添加水印', desc: '图片水印工具', path: 'pages/watermark/index' },
-				{ icon: '🌙', name: '自动夜答', desc: '自动夜答管理网站', url: 'http://aec.kyrian.asia' },
-				{ icon: '🚰', name: '查询送水', desc: '今日白班送水情况', action: 'queryWater' },
-				{ icon: '⏳', name: '敬请期待', desc: '功能开发中', disabled: true }
-			]
+				{ icon: '🖼️', name: '添加水印', desc: '给照片添加上时间、姓名水印和二维码', path: 'pages/watermark/index' },
+				{ icon: '🌙', name: '自动夜答', desc: '跳转至夜答管理网站→', url: 'http://aec.kyrian.asia' },
+				{ icon: '🚰', name: '查询送水', desc: '查看今日白班送水情况', action: 'queryWater' }
+			],
+			filteredApps: null
 		}
 	},
 	onLoad() {
-		// 获取状态栏高度
 		const systemInfo = uni.getSystemInfoSync()
 		this.statusBarHeight = systemInfo.statusBarHeight || 0
 		
-				// 获取本地版本号
 		// #ifdef APP-PLUS
 		try {
 			if (typeof plus !== 'undefined' && plus.runtime) {
@@ -291,516 +284,243 @@ export default {
 		this.localVersionCode = '0'
 		// #endif
 		
-		// 从缓存中读取加密key，如果没有则使用默认值
 		const cachedKey = uni.getStorageSync('watermark_encryption_key')
 		if (cachedKey) {
 			this.encryptionKey = cachedKey
 		} else {
-			// 首次使用，保存默认key到缓存
 			uni.setStorageSync('watermark_encryption_key', this.encryptionKey)
 		}
 	},
 	methods: {
-		// 从服务器获取最新的加密key（与watermark保持一致）
+		onSearchInput(e) {
+			const query = (e.detail.value || '').trim().toLowerCase()
+			if (!query) {
+				this.filteredApps = null
+				return
+			}
+			const indices = []
+			this.utilityApps.forEach((app, i) => {
+				const name = app.name.toLowerCase()
+				const desc = app.desc.toLowerCase()
+				if (name.includes(query) || desc.includes(query)) {
+					indices.push(i)
+				}
+			})
+			this.filteredApps = indices.length > 0 ? indices : []
+		},
 		async fetchKeyFromServer() {
 			try {
-				// 使用静态导入的配置文件
 				const config = apiConfig.watermarkKey
-				
-				// 发起HTTP请求
 				const response = await new Promise((resolve, reject) => {
 					uni.request({
 						url: config.url,
 						method: config.method,
 						header: config.headers,
-						success: (res) => {
-							resolve(res)
-						},
-						fail: (err) => {
-							reject(err)
-						}
+						success: (res) => { resolve(res) },
+						fail: (err) => { reject(err) }
 					})
 				})
-				
-				// 检查响应是否成功
 				if (response.statusCode === 200 && response.data) {
 					const data = response.data
 					if (data.code === 0 && data.result && data.result.key) {
-						// 更新key到缓存
 						const newKey = data.result.key
 						this.encryptionKey = newKey
 						uni.setStorageSync('watermark_encryption_key', newKey)
-						console.log('加密key已更新:', newKey)
 					}
 				}
 			} catch (error) {
-				// 请求失败，忽略，继续使用缓存中的key
 				console.log('获取加密key失败，使用缓存key:', error)
 			}
 		},
-		
-		// 检测是否为加密的二维码格式
 		isEncryptedQRCode(text) {
-			if (!text || typeof text !== 'string') {
-				return false
-			}
+			if (!text || typeof text !== 'string') return false
 			try {
-				// 尝试解析为JSON
 				const parsed = JSON.parse(text)
-				// 检查是否包含 text 和 version 字段
-				if (parsed && typeof parsed === 'object' && parsed.text && parsed.version) {
-					return true
-				}
-			} catch (e) {
-				// 不是有效的JSON
-				return false
-			}
+				if (parsed && typeof parsed === 'object' && parsed.text && parsed.version) return true
+			} catch (e) { return false }
 			return false
 		},
-		
-		// 解密二维码内容
 		async decryptQRCode(encryptedText) {
 			try {
-				// 1. 解析JSON获取加密文本
 				const parsed = JSON.parse(encryptedText)
-				if (!parsed.text) {
-					return null
-				}
-				
-				// 2. 将 \u003d 还原为 =
+				if (!parsed.text) return null
 				const base64Text = parsed.text.replace(/\\u003d/g, '=')
-				
-				// 3. 先尝试从服务器获取最新的key
 				await this.fetchKeyFromServer()
-				
-				// 4. AES-128-ECB 解密
 				const key = CryptoJS.enc.Utf8.parse(this.encryptionKey)
 				const decrypted = CryptoJS.AES.decrypt(base64Text, key, {
-					mode: CryptoJS.mode.ECB,
-					padding: CryptoJS.pad.Pkcs7
+					mode: CryptoJS.mode.ECB, padding: CryptoJS.pad.Pkcs7
 				})
-				
-				// 5. 转换为字符串
 				const decryptedText = decrypted.toString(CryptoJS.enc.Utf8)
-				if (!decryptedText) {
-					return null
-				}
-				
-				// 6. 解析为JSON对象
-				const data = JSON.parse(decryptedText)
-				return data
+				if (!decryptedText) return null
+				return JSON.parse(decryptedText)
 			} catch (error) {
 				console.error('解密失败:', error)
 				return null
 			}
 		},
-		
-		// 将小数度转换为度分秒格式
 		decimalToDMS(decimal, isLatitude) {
 			const abs = Math.abs(decimal)
 			const degrees = Math.floor(abs)
 			const minutesFloat = (abs - degrees) * 60
 			const minutes = Math.floor(minutesFloat)
 			const seconds = Math.round((minutesFloat - minutes) * 60)
-			const direction = isLatitude 
-				? (decimal >= 0 ? 'N' : 'S')
-				: (decimal >= 0 ? 'E' : 'W')
+			const direction = isLatitude ? (decimal >= 0 ? 'N' : 'S') : (decimal >= 0 ? 'E' : 'W')
 			return `${degrees}°${minutes}'${seconds}"${direction}`
 		},
-		
-		// 格式化解密后的数据为人类可读的中文
 		formatDecryptedData(data) {
-			if (!data || typeof data !== 'object') {
-				return []
-			}
-			
+			if (!data || typeof data !== 'object') return []
 			const formatted = []
-			
-			// 姓名
-			if (data.n) {
-				formatted.push({
-					label: '姓名',
-					value: data.n
-				})
-			}
-			
-			// 时间戳
+			if (data.n) formatted.push({ label: '姓名', value: data.n })
 			if (data.ot) {
 				const date = new Date(data.ot * 1000)
-				const year = date.getFullYear()
-				const month = String(date.getMonth() + 1).padStart(2, '0')
-				const day = String(date.getDate()).padStart(2, '0')
-				const hours = String(date.getHours()).padStart(2, '0')
-				const minutes = String(date.getMinutes()).padStart(2, '0')
-				const seconds = String(date.getSeconds()).padStart(2, '0')
-				const dateStr = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`
-				formatted.push({
-					label: '时间',
-					value: dateStr
-				})
+				const y = date.getFullYear(), mo = String(date.getMonth() + 1).padStart(2,'0')
+				const d = String(date.getDate()).padStart(2,'0'), h = String(date.getHours()).padStart(2,'0')
+				const mi = String(date.getMinutes()).padStart(2,'0'), s = String(date.getSeconds()).padStart(2,'0')
+				formatted.push({ label: '时间', value: `${y}-${mo}-${d} ${h}:${mi}:${s}` })
 			}
-			
-			// 地理位置信息
 			if (data.g && data.g.la !== undefined && data.g.lo !== undefined) {
-				const latitude = this.decimalToDMS(data.g.la, true)
-				const longitude = this.decimalToDMS(data.g.lo, false)
-				formatted.push({
-					label: '定位',
-					value: `${latitude}\n${longitude}`
-				})
+				formatted.push({ label: '定位', value: `${this.decimalToDMS(data.g.la, true)}\n${this.decimalToDMS(data.g.lo, false)}` })
 			}
-			
-			// 时间可靠性
-			if (data.or !== undefined) {
-				formatted.push({
-					label: '时间可靠性',
-					value: data.or.toString()
-				})
-			}
-			
-			// 员工ID
-			if (data.s) {
-				formatted.push({
-					label: '员工ID',
-					value: data.s.toString()
-				})
-			}
-			
+			if (data.or !== undefined) formatted.push({ label: '时间可靠性', value: data.or.toString() })
+			if (data.s) formatted.push({ label: '员工ID', value: data.s.toString() })
 			return formatted
 		},
-		
 		handleScan() {
-			// 调用扫码功能
-			// 允许从相机和相册扫码，启用自动放大，只扫描二维码
 			uni.scanCode({
-				scanType: ['qrCode'], // 只扫描二维码
-				// autoZoom: true, // 启用自动放大（仅App-Android支持）
+				scanType: ['qrCode'],
 				success: async (res) => {
-					console.log('扫码成功', res)
 					const scanText = res.result || ''
-					
-					// 先尝试检测是否为加密的二维码
 					const isEncrypted = this.isEncryptedQRCode(scanText)
 					let decryptedData = null
-					
 					if (isEncrypted) {
-						// 尝试解密
-						uni.showLoading({
-							title: '解析中...'
-						})
+						uni.showLoading({ title: '解析中...' })
 						decryptedData = await this.decryptQRCode(scanText)
 						uni.hideLoading()
-						
 						if (decryptedData) {
-							// 解密成功
-							this.scanResult = {
-								result: scanText,
-								scanType: res.scanType || '二维码',
-								decrypted: decryptedData,
-								isEncrypted: true
-							}
+							this.scanResult = { result: scanText, scanType: res.scanType || '二维码', decrypted: decryptedData, isEncrypted: true }
 						} else {
-							// 解密失败，显示原始内容
-							this.scanResult = {
-								result: scanText,
-								scanType: res.scanType || '二维码',
-								decrypted: null,
-								isEncrypted: true
-							}
-							uni.showToast({
-								title: '解密失败，显示原始内容',
-								icon: 'none',
-								duration: 2000
-							})
+							this.scanResult = { result: scanText, scanType: res.scanType || '二维码', decrypted: null, isEncrypted: true }
+							uni.showToast({ title: '解密失败，显示原始内容', icon: 'none', duration: 2000 })
 						}
 					} else {
-						// 不是加密格式，显示原始内容
-						this.scanResult = {
-							result: scanText,
-							scanType: res.scanType || '未知',
-							decrypted: null,
-							isEncrypted: false
-						}
+						this.scanResult = { result: scanText, scanType: res.scanType || '未知', decrypted: null, isEncrypted: false }
 					}
-					
-					// 显示弹窗
 					this.showScanModal = true
 				},
 				fail: (err) => {
-					console.log('扫码失败', err)
-					// 用户取消扫码不显示错误提示
 					if (err.errMsg && !err.errMsg.includes('cancel')) {
-						uni.showToast({
-							title: '扫码失败：' + (err.errMsg || '未知错误'),
-							icon: 'none',
-							duration: 2000
-						})
+						uni.showToast({ title: '扫码失败：' + (err.errMsg || '未知错误'), icon: 'none', duration: 2000 })
 					}
 				}
 			})
 		},
-		// 关闭扫码结果弹窗
 		closeScanModal() {
 			this.showScanModal = false
-			// 清空扫码结果
 			setTimeout(() => {
-				this.scanResult = {
-					result: '',
-					scanType: '',
-					decrypted: null,
-					isEncrypted: false
-				}
+				this.scanResult = { result: '', scanType: '', decrypted: null, isEncrypted: false }
 			}, 300)
 		},
-		// 查询送水数据
 		async queryWaterDelivery() {
-			uni.showLoading({
-				title: '加载中...'
-			})
-			
+			uni.showLoading({ title: '加载中...' })
 			try {
-				// H5 使用代理避免 CORS，App 使用完整 URL
 				// #ifdef H5
 				const requestUrl = '/api/water'
 				// #endif
 				// #ifndef H5
 				const requestUrl = 'http://kyrian.asia/api/water'
 				// #endif
-				
 				const response = await new Promise((resolve, reject) => {
 					uni.request({
-						url: requestUrl,
-						method: 'GET',
-						success: (res) => {
-							if (res.statusCode === 200 && res.data) {
-								resolve(res.data)
-							} else {
-								reject(new Error('请求失败'))
-							}
-						},
-						fail: (err) => {
-							reject(err)
-						}
+						url: requestUrl, method: 'GET',
+						success: (res) => { if (res.statusCode === 200 && res.data) resolve(res.data); else reject(new Error('请求失败')) },
+						fail: (err) => { reject(err) }
 					})
 				})
-				
 				uni.hideLoading()
-				
-				// 更新数据
 				this.waterData = {
-					success: response.success || false,
-					query_date: response.query_date || '',
-					total_buckets: response.total_buckets || 0,
-					deliverers: response.deliverers || []
+					success: response.success || false, query_date: response.query_date || '',
+					total_buckets: response.total_buckets || 0, deliverers: response.deliverers || []
 				}
-				
-				// 显示弹窗
 				this.showWaterModal = true
-				
 			} catch (error) {
 				uni.hideLoading()
-				console.error('查询送水数据失败:', error)
-				uni.showToast({
-					title: '查询失败，请稍后重试',
-					icon: 'none',
-					duration: 2000
-				})
+				uni.showToast({ title: '查询失败，请稍后重试', icon: 'none', duration: 2000 })
 			}
 		},
-		// 关闭送水查询弹窗
-		closeWaterModal() {
-			this.showWaterModal = false
-		},
-		// 获取姓名首字母
-		getInitials(name) {
-			if (!name) return '?'
-			return name.charAt(0).toUpperCase()
-		},
-		// 检测是否为URL
-		isUrl(str) {
-			if (!str || typeof str !== 'string') {
-				return false
-			}
-			// URL正则表达式，支持 http://、https://、ftp:// 等协议
-			const urlPattern = /^(https?|ftp):\/\/[-A-Za-z0-9+&@#/%?=~_|!:,.;]+[-A-Za-z0-9+&@#/%=~_|]$/i
-			return urlPattern.test(str.trim())
-		},
-		// 打开扫码得到的URL
+		closeWaterModal() { this.showWaterModal = false },
+		getInitials(name) { if (!name) return '?'; return name.charAt(0).toUpperCase() },
+		isUrl(str) { if (!str || typeof str !== 'string') return false; const urlPattern = /^(https?|ftp):\/\/[-A-Za-z0-9+&@#/%?=~_|!:,.;]+[-A-Za-z0-9+&@#/%=~_|]$/i; return urlPattern.test(str.trim()) },
 		openScanUrl() {
 			const url = this.scanResult.result
-			if (!this.isUrl(url)) {
-				uni.showToast({
-					title: '无效的网址',
-					icon: 'none',
-					duration: 2000
-				})
-				return
-			}
-			
-			// 先关闭弹窗
+			if (!this.isUrl(url)) { uni.showToast({ title: '无效的网址', icon: 'none', duration: 2000 }); return }
 			this.closeScanModal()
-			
-			// 延迟一下再打开，让弹窗关闭动画完成
-			setTimeout(() => {
-				this.openExternalUrl(url)
-			}, 300)
+			setTimeout(() => { this.openExternalUrl(url) }, 300)
 		},
-		// 复制扫码结果
 		copyScanResult() {
 			const content = this.scanResult.result
 			uni.setClipboardData({
 				data: content,
-				success: () => {
-					uni.showToast({
-						title: '已复制到剪贴板',
-						icon: 'success',
-						duration: 2000
-					})
-					this.closeScanModal()
-				},
-				fail: () => {
-					uni.showToast({
-						title: '复制失败',
-						icon: 'none',
-						duration: 2000
-					})
-				}
+				success: () => { uni.showToast({ title: '已复制到剪贴板', icon: 'success', duration: 2000 }); this.closeScanModal() },
+				fail: () => { uni.showToast({ title: '复制失败', icon: 'none', duration: 2000 }) }
 			})
 		},
-		// 处理内容框点击事件
 		handleContentClick() {
-			// 如果是网址类型，点击时打开网址
-			if (!this.scanResult.isEncrypted && this.isUrl(this.scanResult.result)) {
-				this.openScanUrl()
-			}
+			if (!this.scanResult.isEncrypted && this.isUrl(this.scanResult.result)) this.openScanUrl()
 		},
-		openSettingsModal() {
-			this.showSettingsModal = true
-		},
-		closeSettingsModal() {
-			this.showSettingsModal = false
-		},
+		openSettingsModal() { this.showSettingsModal = true },
+		closeSettingsModal() { this.showSettingsModal = false },
 		checkForUpdateManually() {
 			this.closeSettingsModal()
-			checkUpdate({ silent: false }).catch(err => {
-				console.error('手动检查更新失败:', err)
-			})
+			checkUpdate({ silent: false }).catch(err => { console.error('手动检查更新失败:', err) })
 		},
 		handleAppClick(app) {
-			console.log('点击应用', app)
-			
-			// 如果是禁用状态，显示敬请期待
 			if (app.disabled) {
-				uni.showToast({
-					title: '敬请期待',
-					icon: 'none',
-					duration: 2000
-				})
+				uni.showToast({ title: '敬请期待', icon: 'none', duration: 2000 })
 				return
 			}
-			
-			// 如果是查询送水
-			if (app.action === 'queryWater') {
-				this.queryWaterDelivery()
-				return
-			}
-			
-			// 如果是自动夜答，打开外部链接
-			if (app.url) {
-				this.openExternalUrl(app.url)
-				return
-			}
-			
-			// 如果有路径，跳转到对应页面
+			if (app.action === 'queryWater') { this.queryWaterDelivery(); return }
+			if (app.url) { this.openExternalUrl(app.url); return }
 			if (app.path) {
-				// uni-app路径格式：以/开头
 				const url = app.path.startsWith('/') ? app.path : '/' + app.path
-				console.log('准备跳转到:', url, '应用信息:', app)
 				uni.navigateTo({
 					url: url,
-					success: () => {
-						console.log('跳转成功')
-					},
+					success: () => {},
 					fail: (err) => {
-						console.error('跳转失败', err, '路径:', url)
-						// 尝试不带/的路径
 						const altUrl = app.path.startsWith('/') ? app.path.substring(1) : app.path
-						console.log('尝试备用路径:', altUrl)
-						uni.navigateTo({
-							url: altUrl,
-							fail: (err2) => {
-								console.error('备用路径也失败', err2)
-								uni.showToast({
-									title: '跳转失败，请检查控制台',
-									icon: 'none',
-									duration: 3000
-								})
-							}
-						})
+						uni.navigateTo({ url: altUrl, fail: (err2) => { uni.showToast({ title: '跳转失败', icon: 'none', duration: 3000 }) } })
 					}
 				})
 				return
 			}
-			
-			uni.showToast({
-				title: app.name,
-				icon: 'none',
-				duration: 2000
-			})
+			uni.showToast({ title: app.name, icon: 'none', duration: 2000 })
 		},
 		openExternalUrl(url) {
 			// #ifdef H5
 			window.open(url, '_blank')
 			// #endif
-			
 			// #ifdef APP-PLUS
-			if (typeof plus !== 'undefined' && plus.runtime) {
-				plus.runtime.openURL(url)
-			} else {
-				uni.showToast({
-					title: '无法打开链接',
-					icon: 'none',
-					duration: 2000
-				})
-			}
+			if (typeof plus !== 'undefined' && plus.runtime) { plus.runtime.openURL(url) } else { uni.showToast({ title: '无法打开链接', icon: 'none', duration: 2000 }) }
 			// #endif
-			
 			// #ifdef MP
-			// 小程序不支持直接打开外部链接，需要引导用户复制链接或使用web-view
-			uni.setClipboardData({
-				data: url,
-				success: () => {
-					uni.showToast({
-						title: '链接已复制，请在浏览器中打开',
-						icon: 'none',
-						duration: 3000
-					})
-				}
-			})
+			uni.setClipboardData({ data: url, success: () => { uni.showToast({ title: '链接已复制，请在浏览器中打开', icon: 'none', duration: 3000 }) } })
 			// #endif
 		},
 		switchTab(index) {
 			this.currentTab = index
 			const tabNames = ['首页', '应用', '我的']
-			uni.showToast({
-				title: tabNames[index],
-				icon: 'none',
-				duration: 1500
-			})
+			uni.showToast({ title: tabNames[index], icon: 'none', duration: 1500 })
 		}
 	}
 }
 </script>
 
 <style lang="scss" scoped>
+/* ========== Page Base ========== */
 .page {
 	min-height: 100vh;
-	width: 100%;
-	background: linear-gradient(180deg, #f5f7fa 0%, #c3cfe2 100%);
-	display: flex;
-	flex-direction: column;
+	background: #f5f6f8;
+	padding: 0 20px 40px;
 	box-sizing: border-box;
-	overflow-x: hidden;
 }
 
 .status-bar {
@@ -808,736 +528,412 @@ export default {
 	background: transparent;
 }
 
-/* 头部区域 */
+/* ========== Header ========== */
 .header {
-	background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-	padding: 60rpx 40rpx 80rpx;
-	color: white;
-	position: relative;
-	overflow: hidden;
-}
-
-/* 扫一扫按钮 */
-.scan-btn {
-	position: absolute;
-	top: 60rpx;
-	right: 140rpx;
-	width: 80rpx;
-	height: 80rpx;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	z-index: 10;
-	transition: all 0.3s ease;
-}
-
-.scan-btn:active {
-	transform: scale(0.9);
-}
-
-.scan-icon {
-	font-size: 48rpx;
-	opacity: 0.9;
-}
-
-/* 设置按钮 */
-.settings-btn {
-	position: absolute;
-	top: 60rpx;
-	right: 40rpx;
-	width: 80rpx;
-	height: 80rpx;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	z-index: 10;
-	transition: all 0.3s ease;
-}
-
-.settings-btn:active {
-	transform: scale(0.9) rotate(90deg);
-}
-
-.settings-icon {
-	font-size: 48rpx;
-	opacity: 0.9;
-}
-
-.header::before {
-	content: '';
-	position: absolute;
-	top: -50%;
-	right: -20%;
-	width: 400rpx;
-	height: 400rpx;
-	background: rgba(255, 255, 255, 0.1);
-	border-radius: 50%;
-}
-
-.user-info {
-	position: relative;
-	z-index: 1;
-}
-
-.avatar {
-	width: 140rpx;
-	height: 140rpx;
-	border-radius: 50%;
-	background: white;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	font-size: 64rpx;
-	margin-bottom: 24rpx;
-	box-shadow: 0 8rpx 24rpx rgba(0, 0, 0, 0.15);
-}
-
-.user-name {
-	display: block;
-	font-size: 48rpx;
-	font-weight: 700;
-	margin-bottom: 8rpx;
-}
-
-.user-desc {
-	display: block;
-	font-size: 28rpx;
-	opacity: 0.9;
-}
-
-/* 内容区域 */
-.content {
-	flex: 1;
-	padding: 40rpx;
-	padding-bottom: 200rpx;
-	box-sizing: border-box;
-}
-
-/* 功能小程序区域 */
-.apps-section {
-	margin-bottom: 50rpx;
-}
-
-.section-title {
-	font-size: 36rpx;
-	font-weight: 700;
-	color: #333;
-	margin-bottom: 30rpx;
-	display: flex;
-	align-items: center;
-}
-
-.section-title::before {
-	content: '';
-	width: 8rpx;
-	height: 36rpx;
-	background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-	border-radius: 4rpx;
-	margin-right: 16rpx;
-}
-
-.apps-grid {
-	display: grid;
-	grid-template-columns: repeat(2, 1fr);
-	gap: 24rpx;
-	box-sizing: border-box;
-}
-
-.app-card {
-	background: white;
-	border-radius: 32rpx;
-	padding: 40rpx;
-	box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.08);
-	position: relative;
-	overflow: hidden;
-	transition: all 0.3s ease;
-	box-sizing: border-box;
-	width: 100%;
-}
-
-.app-card::before {
-	content: '';
-	position: absolute;
-	top: 0;
-	left: 0;
-	right: 0;
-	height: 6rpx;
-	background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
-	transform: scaleX(0);
-	transition: transform 0.3s ease;
-}
-
-.app-card:active {
-	transform: translateY(-4rpx);
-	box-shadow: 0 8rpx 24rpx rgba(0, 0, 0, 0.12);
-}
-
-.app-card.disabled {
-	opacity: 0.6;
-}
-
-.app-card:active::before {
-	transform: scaleX(1);
-}
-
-.app-icon {
-	width: 100rpx;
-	height: 100rpx;
-	border-radius: 24rpx;
-	margin-bottom: 24rpx;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	font-size: 48rpx;
-	font-weight: bold;
-	color: white;
-}
-
-.app-icon.icon-1 {
-	background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-}
-
-.app-icon.icon-2 {
-	background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-}
-
-.app-icon.icon-3 {
-	background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-}
-
-.app-icon.icon-4 {
-	background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
-}
-
-
-.app-name {
-	display: block;
-	font-size: 32rpx;
-	font-weight: 600;
-	color: #333;
-	margin-bottom: 8rpx;
-}
-
-.app-desc {
-	display: block;
-	font-size: 24rpx;
-	color: #999;
-	line-height: 1.4;
-}
-
-/* 底部导航 */
-.bottom-nav {
-	position: fixed;
-	bottom: 0;
-	left: 0;
-	right: 0;
-	height: 160rpx;
-	background: white;
-	display: flex;
-	justify-content: space-around;
-	align-items: center;
-	box-shadow: 0 -4rpx 20rpx rgba(0, 0, 0, 0.05);
-	padding-bottom: env(safe-area-inset-bottom);
-	padding-bottom: constant(safe-area-inset-bottom);
-}
-
-.nav-item {
-	display: flex;
-	flex-direction: column;
-	align-items: center;
-	flex: 1;
-	transition: all 0.3s ease;
-}
-
-.nav-item:active {
-	transform: scale(0.9);
-}
-
-.nav-icon {
-	width: 56rpx;
-	height: 56rpx;
-	border-radius: 16rpx;
-	margin-bottom: 8rpx;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	font-size: 36rpx;
-	background: #f0f0f0;
-	color: #666;
-	transition: all 0.3s ease;
-}
-
-.nav-item.active .nav-icon {
-	background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-	color: white;
-}
-
-.nav-label {
-	font-size: 22rpx;
-	color: #666;
-	transition: all 0.3s ease;
-}
-
-.nav-item.active .nav-label {
-	color: #667eea;
-	font-weight: 600;
-}
-
-/* 扫码结果弹窗 */
-.scan-modal {
-	position: fixed;
-	top: 0;
-	left: 0;
-	right: 0;
-	bottom: 0;
-	background: rgba(0, 0, 0, 0.5);
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	z-index: 9999;
-	animation: fadeIn 0.3s ease;
-}
-
-@keyframes fadeIn {
-	from {
-		opacity: 0;
-	}
-	to {
-		opacity: 1;
-	}
-}
-
-.scan-modal-content {
-	width: 85%;
-	max-width: 600rpx;
-	background: white;
-	border-radius: 32rpx;
-	overflow: hidden;
-	animation: slideUp 0.3s ease;
-	box-shadow: 0 20rpx 60rpx rgba(0, 0, 0, 0.3);
-}
-
-@keyframes slideUp {
-	from {
-		transform: translateY(100rpx);
-		opacity: 0;
-	}
-	to {
-		transform: translateY(0);
-		opacity: 1;
-	}
-}
-
-.scan-modal-header {
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
-	padding: 40rpx;
-	border-bottom: 1rpx solid #f0f0f0;
-	background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+	padding: 16px 0 0;
 }
 
-.scan-modal-title {
-	font-size: 36rpx;
+.header-title {
+	font-size: 20px;
 	font-weight: 700;
-	color: white;
+	color: #1a1a2e;
 }
 
-.scan-modal-close {
-	width: 60rpx;
-	height: 60rpx;
+.header-actions {
+	display: flex;
+	gap: 8px;
+}
+
+.icon-btn {
+	width: 36px;
+	height: 36px;
+	border-radius: 10px;
+	background: #ffffff;
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	font-size: 40rpx;
-	color: white;
-	border-radius: 50%;
-	background: rgba(255, 255, 255, 0.2);
-	transition: all 0.3s ease;
+	transition: all 0.2s ease;
+	color: #8a8a9a;
+	box-shadow: 0 1px 3px rgba(0,0,0,0.04);
 }
 
-.scan-modal-close:active {
-	background: rgba(255, 255, 255, 0.3);
-	transform: scale(0.9);
+.icon-btn:active {
+	transform: scale(0.92);
+	background: #f0f0f4;
 }
 
-.scan-modal-body {
-	padding: 40rpx;
-	max-height: 60vh;
-	overflow-y: auto;
+/* ========== Hero ========== */
+.hero {
+	text-align: center;
+	padding: 24px 0 20px;
 }
 
-.scan-result-type,
-.scan-result-content,
-.scan-result-url {
-	margin-bottom: 30rpx;
-	word-break: break-all;
-}
-
-.scan-result-url {
-	padding: 20rpx;
-	background: #f8f9fa;
-	border-radius: 16rpx;
-	border-left: 4rpx solid #667eea;
-}
-
-.scan-label {
-	font-size: 28rpx;
-	color: #666;
-	margin-bottom: 12rpx;
+.hero-title {
 	display: block;
-	font-weight: 600;
+	font-size: 24px;
+	font-weight: 700;
+	color: #1a1a2e;
+	line-height: 1.3;
+	letter-spacing: -0.5px;
 }
 
-.scan-value {
-	font-size: 32rpx;
-	color: #333;
-	line-height: 1.6;
-	display: block;
-	word-break: break-all;
-	user-select: text;
-	-webkit-user-select: text;
-}
-
-.scan-content {
-	padding: 20rpx;
-	background: #f8f9fa;
-	border-radius: 16rpx;
-	min-height: 80rpx;
-	user-select: text;
-	-webkit-user-select: text;
-}
-
-.scan-content-clickable {
-	cursor: pointer;
-}
-
-.scan-content-clickable:active {
-	background: #e9ecef;
-}
-
-.scan-url-clickable {
-	color: #667eea;
-	text-decoration: underline;
-}
-
-.scan-modal-footer {
+.hero-tags {
 	display: flex;
-	border-top: 1rpx solid #f0f0f0;
-	padding: 0;
+	justify-content: center;
+	gap: 10px;
+	margin-top: 14px;
 }
 
-.scan-modal-btn {
+.tag {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	padding: 6px 14px;
+	background: #ffffff;
+	border-radius: 20px;
+	font-size: 13px;
+	color: #8a8a9a;
+	box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+}
+
+.tag-icon {
+	font-size: 14px;
+}
+
+/* ========== Search ========== */
+.search-box {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	background: #ffffff;
+	border-radius: 14px;
+	padding: 0 16px;
+	height: 50px;
+	margin-bottom: 20px;
+	box-shadow: 0 2px 16px rgba(0,0,0,0.06);
+}
+
+.search-input {
 	flex: 1;
-	height: 100rpx;
+	height: 100%;
+	border: none;
+	outline: none;
+	background: transparent;
+	font-size: 15px;
+	color: #1a1a2e;
+}
+
+.search-input::placeholder {
+	color: #a0a0b8;
+}
+
+/* ========== Tools ========== */
+.tools-list {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+}
+
+.tool-card {
+	display: flex;
+	align-items: center;
+	gap: 14px;
+	background: #ffffff;
+	border-radius: 16px;
+	padding: 16px;
+	box-shadow: 0 2px 16px rgba(0,0,0,0.06);
+	transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+	animation: fadeInUp 0.4s ease both;
+}
+
+.tool-card:nth-child(1) { animation-delay: 0.05s; }
+.tool-card:nth-child(2) { animation-delay: 0.1s; }
+.tool-card:nth-child(3) { animation-delay: 0.15s; }
+
+.tool-card.hidden {
+	display: none;
+}
+
+.tool-card:active {
+	transform: scale(0.98);
+}
+
+@keyframes fadeInUp {
+	from { opacity: 0; transform: translateY(12px); }
+	to { opacity: 1; transform: translateY(0); }
+}
+
+.tool-icon {
+	width: 48px;
+	height: 48px;
+	border-radius: 12px;
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	font-size: 32rpx;
+	flex-shrink: 0;
+}
+
+.tool-icon-1 { background: #7c5cfc; }
+.tool-icon-2 { background: #ec4899; }
+.tool-icon-3 { background: #06b6d4; }
+
+.tool-content {
+	flex: 1;
+	min-width: 0;
+}
+
+.tool-name {
+	display: block;
+	font-size: 16px;
 	font-weight: 600;
-	transition: all 0.3s ease;
-	border-right: 1rpx solid #f0f0f0;
+	color: #1a1a2e;
+	margin-bottom: 3px;
 }
 
-.scan-modal-btn:last-child {
-	border-right: none;
+.tool-desc {
+	display: block;
+	font-size: 13px;
+	color: #8a8a9a;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
 }
 
-.cancel-btn {
-	color: #666;
-	background: white;
+.tool-arrow {
+	color: #8a8a9a;
+	flex-shrink: 0;
+	transition: transform 0.2s ease;
 }
 
-.cancel-btn:active {
-	background: #f5f5f5;
+.tool-card:active .tool-arrow {
+	transform: translateX(3px);
 }
 
-.confirm-btn,
-.copy-btn {
-	color: white;
-	background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+/* ========== Bottom Sheet ========== */
+.bottom-sheet-overlay {
+	position: fixed;
+	top: 0; left: 0; right: 0; bottom: 0;
+	background: rgba(0,0,0,0.4);
+	z-index: 9999;
+	animation: fadeIn 0.2s ease;
 }
 
-.confirm-btn:active,
-.copy-btn:active {
-	opacity: 0.8;
+.bottom-sheet {
+	position: fixed;
+	bottom: 0; left: 0; right: 0;
+	background: #ffffff;
+	border-radius: 20px 20px 0 0;
+	max-height: 80vh;
+	display: flex;
+	flex-direction: column;
+	animation: sheetUp 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+	max-width: 420px;
+	margin: 0 auto;
 }
 
-/* 解密后的内容样式 */
-.decrypted-content {
-	margin-top: 20rpx;
+@keyframes sheetUp {
+	from { transform: translateY(100%); }
+	to { transform: translateY(0); }
 }
 
-.decrypted-header {
-	margin-bottom: 30rpx;
-	padding-bottom: 20rpx;
-	border-bottom: 2rpx solid #e0e0e0;
+.sheet-handle {
+	width: 36px;
+	height: 4px;
+	background: #d1d1d6;
+	border-radius: 2px;
+	margin: 12px auto 8px;
+	position: sticky;
+	top: 0;
+	z-index: 1;
+	flex-shrink: 0;
 }
 
-.decrypted-title {
-	font-size: 32rpx;
-	font-weight: 700;
-	color: #667eea;
+.sheet-body {
+	padding: 8px 20px 32px;
+	flex: 1;
+	overflow-y: auto;
+	max-height: 60vh;
+	width: 100%;
+	box-sizing: border-box;
 }
 
-.decrypted-item {
-	margin-bottom: 30rpx;
-	padding: 24rpx;
-	background: #f8f9fa;
-	border-radius: 16rpx;
-	border-left: 4rpx solid #667eea;
-}
-
-.decrypted-item-label {
-	font-size: 28rpx;
-	font-weight: 600;
-	color: #333;
-	margin-bottom: 12rpx;
-}
-
-.decrypted-item-value {
-	font-size: 32rpx;
-	color: #667eea;
-	font-weight: 500;
-	margin-bottom: 8rpx;
-	word-break: break-all;
-	user-select: text;
-	-webkit-user-select: text;
-}
-
-.decrypted-item-value.location-value {
-	white-space: pre-line;
-	line-height: 1.8;
-}
-
-.decrypt-failed {
-	padding: 30rpx;
-	background: #fff3cd;
-	border-radius: 16rpx;
-	border-left: 4rpx solid #ffc107;
-	margin-bottom: 20rpx;
-}
-
-.decrypt-failed-text {
-	font-size: 28rpx;
-	color: #856404;
-}
-
-/* 送水查询弹窗样式 */
-.water-modal-header {
-	background: linear-gradient(135deg, #00b4db 0%, #0083b0 100%);
+.sheet-body > view {
+	width: 100%;
+	box-sizing: border-box;
 }
 
 .water-date {
 	text-align: center;
-	margin-bottom: 30rpx;
+	margin-bottom: 16px;
 }
 
-.water-date-label {
-	font-size: 28rpx;
-	color: #666;
-}
+.water-date-label { font-size: 14px; color: #8e8e93; }
+.water-date-value { font-size: 14px; color: #1c1c1e; font-weight: 600; }
 
-.water-date-value {
-	font-size: 28rpx;
-	color: #333;
-	font-weight: 600;
-}
-
-.water-total {
+.water-total-card {
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	padding: 40rpx;
-	background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-	border-radius: 24rpx;
-	margin-bottom: 30rpx;
+	gap: 16px;
+	padding: 24px;
+	background: linear-gradient(135deg, #0284c7 0%, #0ea5e9 100%);
+	border-radius: 16px;
+	margin-bottom: 16px;
 }
 
 .water-total-icon {
-	font-size: 64rpx;
-	margin-right: 24rpx;
-}
-
-.water-total-info {
-	display: flex;
-	flex-direction: column;
-}
-
-.water-total-number {
-	font-size: 72rpx;
-	font-weight: 800;
+	width: 56px; height: 56px;
+	background: rgba(255,255,255,0.1);
+	border-radius: 14px;
+	display: flex; align-items: center; justify-content: center;
 	color: white;
-	line-height: 1;
 }
 
-.water-total-label {
-	font-size: 24rpx;
-	color: rgba(255, 255, 255, 0.9);
-	margin-top: 8rpx;
-}
+.water-total-info { display: flex; flex-direction: column; }
+.water-total-number { font-size: 36px; font-weight: 800; color: white; line-height: 1; }
+.water-total-label { font-size: 13px; color: rgba(255,255,255,0.7); margin-top: 4px; }
 
-.water-divider {
-	height: 2rpx;
-	background: #e0e0e0;
-	margin: 30rpx 0;
-}
+.sheet-divider { height: 1px; background: #f0f0f0; margin: 16px 0; }
 
 .water-section-title {
-	font-size: 32rpx;
-	font-weight: 700;
-	color: #333;
-	margin-bottom: 24rpx;
+	font-size: 15px;
+	font-weight: 600;
+	color: #1c1c1e;
+	margin-bottom: 12px;
 	display: flex;
 	align-items: center;
+	gap: 6px;
+}
+.water-section-title::before {
+	content: '';
+	width: 6px; height: 6px;
+	background: #0284c7;
+	border-radius: 50%;
 }
 
-.water-deliverer-list {
-	display: flex;
-	flex-direction: column;
-	gap: 20rpx;
-}
+.water-deliverer-list { display: flex; flex-direction: column; gap: 10px; }
 
 .water-deliverer-item {
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	padding: 24rpx;
-	background: #f8f9fa;
-	border-radius: 16rpx;
-	border-left: 4rpx solid #667eea;
+	display: flex; align-items: center; justify-content: space-between;
+	padding: 14px 16px; background: #f8f9fc; border-radius: 12px;
+	width: 100%;
+	box-sizing: border-box;
 }
 
-.deliverer-left {
-	display: flex;
-	align-items: center;
-}
+.deliverer-left { display: flex; align-items: center; gap: 12px; }
 
 .deliverer-avatar {
-	width: 80rpx;
-	height: 80rpx;
-	border-radius: 50%;
-	background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	font-size: 32rpx;
-	font-weight: 700;
-	color: white;
-	margin-right: 20rpx;
+	width: 40px; height: 40px; border-radius: 50%;
+	background: #0284c7; display: flex; align-items: center; justify-content: center;
+	font-size: 16px; font-weight: 700; color: white; flex-shrink: 0;
 }
 
-.deliverer-info {
-	display: flex;
-	flex-direction: column;
+.deliverer-info { display: flex; flex-direction: column; }
+.deliverer-name { font-size: 15px; font-weight: 600; color: #1c1c1e; }
+.deliverer-mobile { font-size: 13px; color: #8e8e93; margin-top: 2px; }
+.deliverer-right { display: flex; gap: 16px; }
+
+.deliverer-stat { display: flex; flex-direction: column; align-items: center; min-width: 40px; }
+.stat-number { font-size: 18px; font-weight: 700; color: #0284c7; }
+.stat-label { font-size: 11px; color: #8e8e93; margin-top: 2px; }
+
+.water-empty { text-align: center; padding: 40px; color: #8e8e93; font-size: 14px; }
+
+/* ========== Scan Modal ========== */
+.scan-modal {
+	position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+	background: rgba(0,0,0,0.5); z-index: 9999;
+	display: flex; align-items: center; justify-content: center;
+	animation: fadeIn 0.2s ease;
 }
 
-.deliverer-name {
-	font-size: 30rpx;
-	font-weight: 600;
-	color: #333;
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+.scan-modal-content {
+	width: 85%; max-width: 320px;
+	background: white; border-radius: 20px; overflow: hidden;
+	animation: modalUp 0.25s ease;
+	box-shadow: 0 20px 60px rgba(0,0,0,0.2);
 }
 
-.deliverer-mobile {
-	font-size: 24rpx;
-	color: #999;
-	margin-top: 4rpx;
+@keyframes modalUp {
+	from { transform: translateY(20px); opacity: 0; }
+	to { transform: translateY(0); opacity: 1; }
 }
 
-.deliverer-right {
-	display: flex;
-	gap: 24rpx;
+.scan-modal-header {
+	display: flex; align-items: center; justify-content: space-between;
+	padding: 20px 24px; border-bottom: 1px solid #f0f0f0;
 }
 
-.deliverer-stat {
-	display: flex;
-	flex-direction: column;
-	align-items: center;
-	min-width: 80rpx;
-}
+.scan-modal-title { font-size: 18px; font-weight: 700; color: #1a1a2e; }
 
-.stat-number {
-	font-size: 36rpx;
-	font-weight: 700;
-	color: #667eea;
+.scan-modal-close {
+	width: 32px; height: 32px; border-radius: 50%;
+	background: #f0f0f0; display: flex; align-items: center; justify-content: center;
+	color: #8a8a9a;
 }
+.scan-modal-close:active { background: #e0e0e0; }
 
-.stat-label {
-	font-size: 22rpx;
-	color: #999;
-	margin-top: 4rpx;
-}
+.scan-modal-body { padding: 20px 24px; max-height: 50vh; overflow-y: auto; }
 
-.water-empty {
-	text-align: center;
-	padding: 60rpx;
-	color: #999;
-	font-size: 28rpx;
+.scan-label { display: block; font-size: 14px; color: #8a8a9a; margin-bottom: 8px; font-weight: 600; }
+.scan-value { display: block; font-size: 15px; color: #1a1a2e; line-height: 1.6; word-break: break-all; user-select: text; }
+.scan-content {
+	padding: 14px; background: #f8f9fa; border-radius: 12px; min-height: 48px;
+	user-select: text; -webkit-user-select: text;
 }
-/* 设置弹窗样式 */
-.settings-modal-header {
-	background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-}
+.scan-content-clickable:active { background: #eef0f4; }
+.scan-url-clickable { color: #7c5cfc; text-decoration: underline; }
 
-.settings-section {
-	margin-bottom: 32rpx;
-}
+.decrypted-content { margin-top: 8px; }
+.decrypted-header { margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid #f0f0f0; }
+.decrypted-title { font-size: 16px; font-weight: 700; color: #7c5cfc; }
 
+.decrypted-item {
+	margin-bottom: 12px; padding: 14px; background: #f8f9fa; border-radius: 12px; border-left: 3px solid #7c5cfc;
+}
+.decrypted-item-label { font-size: 14px; font-weight: 600; color: #1a1a2e; margin-bottom: 6px; }
+.decrypted-item-value { font-size: 15px; color: #7c5cfc; font-weight: 500; word-break: break-all; user-select: text; }
+.decrypted-item-value.location-value { white-space: pre-line; line-height: 1.8; }
+
+.decrypt-failed { padding: 16px; background: #fff8e6; border-radius: 12px; border-left: 3px solid #f59e0b; }
+.decrypt-failed-text { font-size: 14px; color: #b45309; }
+
+.scan-modal-footer { display: flex; border-top: 1px solid #f0f0f0; }
+.scan-modal-btn {
+	flex: 1; height: 52px; display: flex; align-items: center; justify-content: center;
+	font-size: 16px; font-weight: 600; transition: all 0.2s ease;
+}
+.cancel-btn { color: #8a8a9a; background: white; }
+.cancel-btn:active { background: #f5f5f5; }
+.copy-btn { color: white; background: #7c5cfc; }
+.copy-btn:active { opacity: 0.85; }
+
+/* ========== Settings in Bottom Sheet ========== */
+.settings-section { margin-bottom: 24px; width: 100%; box-sizing: border-box; }
 .settings-section-title {
-	font-size: 28rpx;
-	font-weight: 700;
-	color: #333;
-	margin-bottom: 20rpx;
-	display: flex;
-	align-items: center;
+	font-size: 13px; font-weight: 600; color: #8e8e93;
+	letter-spacing: 0.3px; margin-bottom: 12px;
 }
 
 .settings-info-item {
-	display: flex;
-	justify-content: space-between;
-	align-items: center;
-	padding: 24rpx;
-	background: #f8f9fa;
-	border-radius: 16rpx;
-	margin-bottom: 16rpx;
+	display: flex; justify-content: space-between; align-items: center;
+	padding: 14px 16px; background: #f8f9fc; border-radius: 12px; margin-bottom: 8px;
+	width: 100%;
+	box-sizing: border-box;
 }
-
-.settings-info-label {
-	font-size: 28rpx;
-	color: #666;
-}
-
-.settings-info-value {
-	font-size: 28rpx;
-	color: #333;
-	font-weight: 600;
-}
+.settings-info-label { font-size: 14px; color: #8e8e93; }
+.settings-info-value { font-size: 14px; color: #1c1c1e; font-weight: 600; }
 
 .settings-update-btn {
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	padding: 30rpx;
-	background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-	border-radius: 24rpx;
-	transition: all 0.3s ease;
+	display: flex; align-items: center; justify-content: center;
+	padding: 16px; background: #1c1c1e; border-radius: 14px;
+	transition: all 0.15s ease;
 }
-
-.settings-update-btn:active {
-	opacity: 0.8;
-	transform: scale(0.98);
-}
-
-.settings-update-btn-icon {
-	font-size: 40rpx;
-	margin-right: 16rpx;
-}
-
-.settings-update-btn-text {
-	font-size: 32rpx;
-	font-weight: 600;
-	color: white;
-}
+.settings-update-btn:active { opacity: 0.8; }
+.settings-update-btn-text { font-size: 16px; font-weight: 600; color: white; }
 </style>
-
-

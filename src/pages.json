@@ -12,15 +12,13 @@
 			"path": "pages/watermark/index",
 			"style": {
 				"navigationBarTitleText": "添加水印",
-				"navigationBarBackgroundColor": "#667eea",
+				"navigationStyle": "custom",
 				"navigationBarTextStyle": "white"
 			}
 		}
 	],
 	"globalStyle": {
 		"navigationBarTextStyle": "black",
-		"navigationBarTitleText": "个人应用",
-		"navigationBarBackgroundColor": "#667eea",
 		"backgroundColor": "#F8F8F8"
 	}
 }
