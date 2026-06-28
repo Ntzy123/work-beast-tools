@@ -38,11 +38,21 @@ const DEFAULT_COLOR = '#8a8a9a'
 // 白色图标（用在深色/彩色背景上，如 tool-icon、upload-icon）
 const WHITE_ICONS = new Set(['camera', 'image', 'moon', 'water'])
 
+// 紫色图标（应用强调色，如 person）
+const PURPLE_ICONS = new Set(['person'])
+
 function readSvg(svgPath) {
   const key = path.basename(svgPath, '.svg')
   let content = fs.readFileSync(svgPath, 'utf-8')
   // 替换 currentColor 为实际颜色
-  const color = WHITE_ICONS.has(key) ? '#ffffff' : DEFAULT_COLOR
+  let color
+  if (PURPLE_ICONS.has(key)) {
+    color = '#7c5cfc'
+  } else if (WHITE_ICONS.has(key)) {
+    color = '#ffffff'
+  } else {
+    color = DEFAULT_COLOR
+  }
   content = content.replace(/currentColor/g, color)
   return { key, content, color }
 }

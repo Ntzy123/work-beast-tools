@@ -4,8 +4,7 @@
  * 详见：docs/update-flow-design.md
  */
 
-// 服务器地址（用于APP端直接请求）
-const API_BASE_URL = 'http://kyrian.asia'
+import { API_BASE } from '@/config/base'
 
 // 本地存储key
 const STORAGE_KEY_IGNORED = 'wbtools_ignored_versions'
@@ -68,7 +67,7 @@ function fetchLatestVersion() {
     const url = '/api/wbtools_version/latest'
     // #endif
     // #ifndef H5
-    const url = `${API_BASE_URL}/api/wbtools_version/latest`
+    const url = `${API_BASE}/api/wbtools_version/latest`
     // #endif
 
     uni.request({

@@ -27,6 +27,44 @@
 			</view>
 		</view>
 
+		<!-- 人员状态卡片 -->
+		<view class="section-label">
+			<image src="/static/images/person.png" class="section-label-icon" />
+			<text class="section-label-text">人员状态</text>
+		</view>
+		<view class="status-card" @click="toggleStatusDetail">
+			<view class="status-row">
+				<view class="status-info">
+					<view class="status-name-row">
+						<text class="status-name">{{ statusData.name }}</text>
+						<image :src="statusData.online ? '/static/images/status-online.png' : '/static/images/status-offline.png'" class="status-dot-img" />
+					</view>
+					<text class="status-distance">{{ statusData.distanceText }}</text>
+				</view>
+				<view class="status-meta">
+					<text class="status-time">{{ statusData.timeText }}</text>
+				</view>
+				<view :class="['status-chevron', { expanded: statusExpanded }]">
+					<image src="/static/images/chevron-down.png" class="chevron-icon" />
+				</view>
+			</view>
+			<view :class="['status-detail', { show: statusExpanded }]">
+				<view class="status-detail-inner">
+					<view class="detail-row">
+						<text class="detail-label">状态</text>
+						<view :class="['status-badge', statusData.online ? 'online' : 'offline']">
+							<image :src="statusData.online ? '/static/images/status-online.png' : '/static/images/status-offline.png'" class="badge-dot-img" />
+							<text>{{ statusData.online ? '在线' : '离线' }}</text>
+						</view>
+					</view>
+					<view class="detail-row">
+						<text class="detail-label">最近一次状态更新</text>
+						<text class="detail-value mono">{{ statusData.lastPunchText }}</text>
+					</view>
+				</view>
+			</view>
+		</view>
+
 		<!-- 搜索框 -->
 		<view class="search-box">
 			<image src="/static/images/search.png" style="width:18px;height:18px;"></image>
@@ -202,6 +240,7 @@
 <script>
 import CryptoJS from 'crypto-js'
 import apiConfig from '@/config/api.config.json'
+import { API_BASE } from '@/config/base'
 import { checkUpdate } from '@/utils/update'
 
 export default {
@@ -233,7 +272,18 @@ export default {
 				{ icon: '🌙', name: '自动夜答', desc: '跳转至夜答管理网站→', url: 'http://aec.kyrian.asia' },
 				{ icon: '🚰', name: '查询送水', desc: '查看今日白班送水情况', action: 'queryWater' }
 			],
-			filteredApps: null
+			filteredApps: null,
+			statusExpanded: false,
+			statusTimer: null,
+			statusData: {
+				name: '李仕科',
+				online: true,
+				distance: 0,
+				timestamp: 0,
+				distanceText: '加载中...',
+				timeText: '',
+				lastPunchText: ''
+			}
 		}
 	},
 	onLoad() {
@@ -261,6 +311,15 @@ export default {
 			this.encryptionKey = cachedKey
 		} else {
 			uni.setStorageSync('watermark_encryption_key', this.encryptionKey)
+		}
+
+		this.fetchStatus()
+		this.scheduleNextStatusFetch()
+	},
+	onUnload() {
+		if (this.statusTimer) {
+			clearTimeout(this.statusTimer)
+			this.statusTimer = null
 		}
 	},
 	methods: {
@@ -399,7 +458,7 @@ export default {
 				const requestUrl = '/api/water'
 				// #endif
 				// #ifndef H5
-				const requestUrl = 'http://kyrian.asia/api/water'
+				const requestUrl = `${API_BASE}/api/water`
 				// #endif
 				const response = await new Promise((resolve, reject) => {
 					uni.request({
@@ -481,8 +540,61 @@ export default {
 			this.currentTab = index
 			const tabNames = ['首页', '应用', '我的']
 			uni.showToast({ title: tabNames[index], icon: 'none', duration: 1500 })
+		},
+		toggleStatusDetail() {
+			this.statusExpanded = !this.statusExpanded
+		},
+		async fetchStatus() {
+			try {
+				const res = await new Promise((resolve, reject) => {
+					uni.request({
+						// #ifdef H5
+						url: '/api/person-device-status/location-latest',
+						// #endif
+						// #ifndef H5
+						url: `${API_BASE}/api/person-device-status/location-latest`,
+						// #endif
+						method: 'GET',
+						success: r => resolve(r),
+						fail: e => reject(e)
+					})
+				})
+				if (res.statusCode === 200 && res.data && res.data.records && res.data.records.length > 0) {
+					const r = res.data.records[0]
+					const ts = new Date(res.data.timestamp)
+					const pad = n => String(n).padStart(2, '0')
+					const timeStr = `${ts.getFullYear()}-${pad(ts.getMonth()+1)}-${pad(ts.getDate())} ${pad(ts.getHours())}:${pad(ts.getMinutes())}:${pad(ts.getSeconds())}`
+					const isOnline = r.status === '1'
+					const dist = r.distance_m || 0
+					const distText = dist > 1000 ? `距项目 ${(dist / 1000).toFixed(2)} km` : `距项目 ${Math.round(dist)} m`
+					this.statusData = {
+						name: r.name || '李仕科',
+						online: isOnline,
+						distance: dist,
+						timestamp: res.data.timestamp,
+						distanceText: distText,
+						timeText: timeStr,
+						lastPunchText: timeStr
+					}
+				}
+			} catch (e) {
+				console.log('获取人员状态失败:', e)
+			}
+		},
+		scheduleNextStatusFetch() {
+			// 计算到下一个分钟的第5秒的延迟，对齐服务器数据更新节奏
+			const now = new Date()
+			const next = new Date(now)
+			next.setSeconds(5)
+			next.setMilliseconds(0)
+			if (next <= now) next.setMinutes(next.getMinutes() + 1)
+			const delay = next.getTime() - now.getTime()
+			this.statusTimer = setTimeout(() => {
+				this.fetchStatus()
+				this.scheduleNextStatusFetch()
+			}, delay)
 		}
-	}
+	},
 }
 </script>
 
@@ -573,6 +685,94 @@ export default {
 
 .tag-icon {
 	font-size: 14px;
+}
+
+/* ========== Section Label ========== */
+.section-label {
+    display: flex; align-items: center; gap: 6px;
+    margin-bottom: 10px; margin-top: 4px;
+}
+.section-label-icon { width: 14px; height: 14px; display: block; }
+.section-label-text {
+	font-size: 12px; font-weight: 600;
+	color: #8a8a9a; letter-spacing: 0.5px;
+}
+
+/* ========== Status Card ========== */
+.status-card {
+	background: #ffffff;
+	border-radius: 14px;
+	padding: 14px 16px;
+	margin-bottom: 14px;
+	box-shadow: 0 2px 16px rgba(0,0,0,0.06);
+	transition: all 0.2s ease;
+	border: 1px solid transparent;
+}
+.status-card:active { transform: scale(0.99); }
+
+.status-row {
+	display: flex; align-items: center; gap: 10px;
+}
+.status-info { flex: 1; min-width: 0; }
+.status-name-row {
+	display: flex; align-items: center; gap: 10px;
+}
+.status-name { font-size: 15px; font-weight: 600; color: #1a1a2e; }
+.status-dot-img {
+	width: 10px; height: 10px; flex-shrink: 0; display: block;
+}
+.status-distance {
+	font-size: 12px; color: #8a8a9a; margin-top: 2px;
+}
+.status-meta { text-align: right; flex-shrink: 0; }
+.status-time {
+	font-size: 11px; color: #b0b0c0; white-space: nowrap;
+}
+.status-chevron {
+	display: flex; align-items: center; justify-content: center;
+	margin-left: 6px; flex-shrink: 0;
+	transition: transform 0.3s ease;
+}
+.status-chevron.expanded { transform: rotate(180deg); }
+.chevron-icon { width: 14px; height: 14px; display: block; }
+
+/* Expanded details */
+.status-detail {
+	overflow: hidden;
+	max-height: 0;
+	transition: max-height 0.35s ease, padding 0.35s ease;
+	padding: 0 48px 0 0;
+}
+.status-detail.show {
+	max-height: 200px;
+	padding-top: 12px;
+}
+.status-detail-inner {
+	border-top: 1px solid #e8e8ed;
+	padding-top: 12px;
+}
+.detail-row {
+	display: flex; justify-content: space-between; align-items: center;
+	padding: 5px 0; font-size: 13px;
+}
+.detail-label { color: #8a8a9a; }
+.detail-value { color: #1a1a2e; font-weight: 500; }
+.detail-value.mono {
+	font-family: 'SF Mono', Menlo, Consolas, monospace;
+	font-size: 12px;
+}
+.status-badge {
+	display: inline-flex; align-items: center;
+	padding: 2px 10px; border-radius: 10px; font-size: 12px; font-weight: 500;
+}
+.status-badge.online {
+	background: rgba(52,199,89,0.12); color: #34c759;
+}
+.status-badge.offline {
+	background: rgba(142,142,147,0.12); color: #8a8a9a;
+}
+.badge-dot-img {
+	width: 7px; height: 7px; display: block; margin-right: 6px;
 }
 
 /* ========== Search ========== */
