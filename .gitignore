@@ -17,6 +17,7 @@ src/static/logo.png
 src/static/images/*.png
 src/static/images/*.jpg
 src/static/images/*.jpeg
+unpackage/*
 
 package-lock.json
 
@@ -27,3 +28,5 @@ package-lock.json
 *.njsproj
 *.sln
 *.sw?
+
+.hbuilderx/*
