@@ -1,4 +1,4 @@
-<template>
+﻿<template>
 	<view class="page">
 		<!-- 状态栏占位 -->
 		<view class="status-bar" :style="{ height: statusBarHeight + 'px' }"></view>
@@ -259,10 +259,23 @@ export default {
 		if (cachedKey) {
 			this.encryptionKey = cachedKey
 		} else {
-			uni.setStorageSync('watermark_encryption_key', this.encryptionKey)
+		uni.setStorageSync('watermark_encryption_key', this.encryptionKey)
+	}
+	
+	// 读取上次保存的姓名配置
+	const savedConfig = uni.getStorageSync('watermark_config')
+	if (savedConfig) {
+		try {
+			const config = JSON.parse(savedConfig)
+			if (config.name) {
+				this.formData.name = config.name
+			}
+		} catch (e) {
+			// JSON 解析失败，忽略
 		}
-		
-		this.warmupCanvas()
+	}
+	
+	this.warmupCanvas()
 	},
 	methods: {
 		goBack() {
@@ -590,7 +603,7 @@ export default {
 			// #ifndef H5
 			this.checkStoragePermissionAndSaveForBatch(imageData, callback, isLast)
 			// #endif
-			if (isLast) { uni.hideLoading(); uni.showToast({title:'全部生成完成',icon:'success'}) }
+			if (isLast) { uni.hideLoading(); this.saveNameConfig(); uni.showToast({title:'全部生成完成',icon:'success'}) }
 			callback()
 		},
 		// #ifndef H5
@@ -646,7 +659,7 @@ export default {
 		saveImage() {
 			if (!this.resultImage) return
 			// #ifdef H5
-			try { const link=document.createElement('a'); link.href=this.resultImage; link.download=this.generateTimestampFileName(); document.body.appendChild(link); link.click(); document.body.removeChild(link); uni.showToast({title:'保存成功',icon:'success'}) } catch(e) { uni.showToast({title:`下载失败: ${e.message||'未知错误'}`,icon:'none',duration:3000}) }
+			try { const link=document.createElement('a'); link.href=this.resultImage; link.download=this.generateTimestampFileName(); document.body.appendChild(link); link.click(); document.body.removeChild(link); this.saveNameConfig(); uni.showToast({title:'保存成功',icon:'success'}) } catch(e) { uni.showToast({title:`下载失败: ${e.message||'未知错误'}`,icon:'none',duration:3000}) }
 			// #endif
 			// #ifndef H5
 			this.checkStoragePermissionAndSave()
@@ -680,7 +693,7 @@ export default {
 		copyFileToTarget(timeoutId, targetDirEntry, fileName) {
 			plus.io.resolveLocalFileSystemURL(this.resultImage, (sourceEntry) => {
 				this.findAvailableFileName(targetDirEntry, fileName, (finalFileName) => {
-					sourceEntry.copyTo(targetDirEntry, finalFileName, (newEntry) => { clearTimeout(timeoutId); uni.hideLoading(); this.scanMediaFile(newEntry.fullPath,()=>{uni.showToast({title:'保存成功',icon:'success'})}) }, (e)=>{clearTimeout(timeoutId);uni.hideLoading();uni.showToast({title:`复制失败: ${e.message||e.code||'未知错误'}`,icon:'none',duration:3000})})
+					sourceEntry.copyTo(targetDirEntry, finalFileName, (newEntry) => { clearTimeout(timeoutId); uni.hideLoading(); this.saveNameConfig(); this.scanMediaFile(newEntry.fullPath,()=>{uni.showToast({title:'保存成功',icon:'success'})}) }, (e)=>{clearTimeout(timeoutId);uni.hideLoading();uni.showToast({title:`复制失败: ${e.message||e.code||'未知错误'}`,icon:'none',duration:3000})})
 				})
 			}, (e)=>{clearTimeout(timeoutId);uni.hideLoading();uni.showToast({title:`访问源文件失败: ${e.message||e.code||'未知错误'}`,icon:'none',duration:3000})})
 		},
@@ -737,6 +750,13 @@ export default {
 			if(sw>this.containerWidth){const mx=(sw-this.containerWidth)/2;lx=Math.max(-mx,Math.min(mx,x))}else{lx=0}
 			if(sh>this.containerHeight){const my=(sh-this.containerHeight)/2;ly=Math.max(-my,Math.min(my,y))}else{ly=0}
 			return {x:lx,y:ly}
+		},
+		saveNameConfig() {
+			const name = this.formData.name; this.formData.name.trim()
+			if (name) {
+				const config = JSON.stringify({ name })
+				uni.setStorageSync('watermark_config', config)
+			}
 		}
 	}
 }
