@@ -234,6 +234,63 @@
 				</scroll-view>
 			</view>
 		</view>
+
+		<!-- 自动夜答 - 底部弹窗 -->
+		<view class="bottom-sheet-overlay" v-if="showEasycheckModal" @click="closeEasycheckModal">
+			<view class="bottom-sheet" @click.stop>
+				<view class="sheet-handle"></view>
+				<scroll-view class="sheet-body" scroll-y>
+					<!-- 创建表单 -->
+					<template v-if="easycheckMode === 'create'">
+						<view class="easycheck-title">创建自动夜答实例</view>
+						<view class="form-group">
+							<text class="form-label">手机号</text>
+							<input class="form-input" type="number" v-model="easycheckForm.mobile" placeholder="请输入手机号" maxlength="11" />
+						</view>
+						<view class="form-group">
+							<text class="form-label">密码</text>
+							<input class="form-input" type="password" v-model="easycheckForm.password" placeholder="请输入密码" />
+						</view>
+						<view class="form-group">
+							<text class="form-label">实例名称 <text class="form-optional">（可选）</text></text>
+							<input class="form-input" type="text" v-model="easycheckForm.instanceName" placeholder="留空将使用随机名称" />
+						</view>
+						<view class="easycheck-btn" :class="{ loading: easycheckCreating }" @click="createEasycheckInstance">
+							<text v-if="!easycheckCreating">创建</text>
+							<text v-else>创建中...</text>
+						</view>
+					</template>
+
+					<!-- 状态面板 -->
+					<template v-if="easycheckMode === 'status' && easycheckStatus">
+						<view class="easycheck-title">实例状态</view>
+						<view class="easycheck-status-card">
+							<view class="status-row-item">
+								<text class="status-label">实例名称</text>
+								<text class="status-value">{{ easycheckStatus.name }}</text>
+							</view>
+							<view class="status-row-item">
+								<text class="status-label">运行状态</text>
+								<view :class="['easycheck-badge', easycheckStatus.running ? 'running' : 'stopped']">
+									<text>{{ easycheckStatus.running ? '运行中' : '已停止' }}</text>
+								</view>
+							</view>
+							<view class="status-row-item">
+								<text class="status-label">目标 URL</text>
+								<text class="status-value mono" selectable>{{ easycheckStatus.url }}</text>
+							</view>
+							<view class="status-row-item">
+								<text class="status-label">创建时间</text>
+								<text class="status-value">{{ easycheckStatus.created_at }}</text>
+							</view>
+						</view>
+						<view class="easycheck-btn secondary" :class="{ loading: easycheckStatusLoading }" @click="refreshEasycheckStatus">
+							<text>刷新状态</text>
+						</view>
+					</template>
+				</scroll-view>
+			</view>
+		</view>
 	</view>
 </template>
 
@@ -241,6 +298,8 @@
 import CryptoJS from 'crypto-js'
 import apiConfig from '@/config/api.config.json'
 import { API_BASE } from '@/config/base'
+
+const AEC_API_BASE = 'https://aec.kyrian.asia'
 import { checkUpdate } from '@/utils/update'
 
 export default {
@@ -269,7 +328,7 @@ export default {
 			localVersionCode: '',
 			utilityApps: [
 				{ icon: '🖼️', name: '添加水印', desc: '给照片添加上时间、姓名水印和二维码', path: 'pages/watermark/index' },
-				{ icon: '🌙', name: '自动夜答', desc: '跳转至夜答管理网站→', url: 'http://aec.kyrian.asia' },
+				{ icon: '🌙', name: '自动夜答', desc: '查看或创建自动夜答实例', action: 'openEasycheck' },
 				{ icon: '🚰', name: '查询送水', desc: '查看今日白班送水情况', action: 'queryWater' }
 			],
 			filteredApps: null,
@@ -284,7 +343,19 @@ export default {
 				timeText: '',
 				lastPunchText: ''
 			},
-			statusLoaded: false
+			statusLoaded: false,
+			showEasycheckModal: false,
+			easycheckMode: 'create',
+			easycheckForm: {
+				mobile: '',
+				password: '',
+				instanceName: ''
+			},
+			easycheckInstanceId: '',
+			easycheckStatus: null,
+			easycheckCreating: false,
+			easycheckStatusLoading: false,
+			easycheckServerOffline: false
 		}
 	},
 	onLoad() {
@@ -511,6 +582,7 @@ export default {
 				return
 			}
 			if (app.action === 'queryWater') { this.queryWaterDelivery(); return }
+			if (app.action === 'openEasycheck') { this.handleEasycheck(); return }
 			if (app.url) { this.openExternalUrl(app.url); return }
 			if (app.path) {
 				const url = app.path.startsWith('/') ? app.path : '/' + app.path
@@ -596,6 +668,152 @@ export default {
 				this.fetchStatus()
 				this.scheduleNextStatusFetch()
 			}, delay)
+		},
+		async handleEasycheck() {
+			uni.showLoading({ title: '加载中...' })
+			const alive = await this.checkServerAlive()
+			uni.hideLoading()
+			if (!alive) {
+				uni.showToast({ title: '自动夜答管理系统未运行，请联系开发者', icon: 'none', duration: 3000 })
+				return
+			}
+			this.loadEasycheckForm()
+			this.easycheckStatus = null
+			const savedId = uni.getStorageSync('easycheck_instance_id')
+			if (savedId) {
+				this.easycheckInstanceId = savedId
+				this.easycheckMode = 'status'
+				this.easycheckStatusLoading = true
+				this.showEasycheckModal = true
+				this.queryEasycheckStatus(savedId)
+			} else {
+				this.easycheckInstanceId = ''
+				this.easycheckMode = 'create'
+				this.showEasycheckModal = true
+			}
+		},
+		async checkServerAlive() {
+			try {
+				const res = await new Promise((resolve, reject) => {
+					const timer = setTimeout(() => reject(new Error('超时')), 5000)
+					uni.request({
+						url: `${AEC_API_BASE}/api/status`,
+						method: 'GET',
+						success: (r) => { clearTimeout(timer); resolve(r) },
+						fail: (e) => { clearTimeout(timer); reject(e) }
+					})
+				})
+				if (res.statusCode === 502 || res.statusCode >= 500) return false
+				if (!res.data || typeof res.data !== 'object') return false
+				return true
+			} catch {
+				return false
+			}
+		},
+		closeEasycheckModal() {
+			this.showEasycheckModal = false
+			setTimeout(() => {
+				this.easycheckMode = 'create'
+				this.easycheckStatus = null
+			}, 300)
+		},
+		async queryEasycheckStatus(id) {
+			this.easycheckStatusLoading = true
+			try {
+				const res = await new Promise((resolve, reject) => {
+					uni.request({
+						url: `${AEC_API_BASE}/api/status`,
+						method: 'POST',
+						header: { 'Content-Type': 'application/json' },
+						data: { id },
+						success: r => resolve(r),
+						fail: e => reject(e)
+					})
+				})
+				if (res.statusCode === 200 && res.data) {
+					if (res.data.code === 0 && res.data.instance) {
+						this.easycheckStatus = res.data.instance
+						this.easycheckMode = 'status'
+					} else if (res.data.code === 1) {
+						uni.removeStorageSync('easycheck_instance_id')
+						this.easycheckInstanceId = ''
+						this.easycheckMode = 'create'
+						this.easycheckStatus = null
+						uni.showToast({ title: '实例已不存在', icon: 'none', duration: 2000 })
+					} else {
+						throw new Error(res.data.msg || '查询失败')
+					}
+				} else {
+					throw new Error('请求失败')
+				}
+			} catch (err) {
+				uni.showToast({ title: '查询状态失败', icon: 'none', duration: 2000 })
+				this.easycheckMode = 'create'
+				this.easycheckStatus = null
+			} finally {
+				this.easycheckStatusLoading = false
+			}
+		},
+		async createEasycheckInstance() {
+			const { mobile, password, instanceName } = this.easycheckForm
+			if (!mobile || !password) {
+				uni.showToast({ title: '请填写手机号和密码', icon: 'none', duration: 2000 })
+				return
+			}
+			this.easycheckCreating = true
+			try {
+				const urlRes = await new Promise((resolve, reject) => {
+					uni.request({
+						url: `${AEC_API_BASE}/api/get-easycheck-url`,
+						method: 'POST',
+						header: { 'Content-Type': 'application/json' },
+						data: { mobile, password },
+						success: r => resolve(r),
+						fail: e => reject(e)
+					})
+				})
+				if (urlRes.statusCode !== 200 || !urlRes.data || urlRes.data.code !== 0) {
+					throw new Error(urlRes.data?.msg || '获取授权URL失败')
+				}
+				const easycheckUrl = urlRes.data.easycheck_url
+				const name = instanceName.trim() || `auto-${String(Math.random()).slice(2, 8)}`
+				const createRes = await new Promise((resolve, reject) => {
+					uni.request({
+						url: `${AEC_API_BASE}/api/create`,
+						method: 'POST',
+						header: { 'Content-Type': 'application/json' },
+						data: { instance_name: name, easycheck_url: easycheckUrl },
+						success: r => resolve(r),
+						fail: e => reject(e)
+					})
+				})
+				if (createRes.statusCode === 201 && createRes.data && createRes.data.code === 0) {
+					const instanceId = createRes.data.instance_id
+					this.easycheckInstanceId = instanceId
+					uni.setStorageSync('easycheck_instance_id', instanceId)
+					this.saveEasycheckForm()
+					await this.queryEasycheckStatus(instanceId)
+				} else {
+					throw new Error(createRes.data?.msg || '创建实例失败')
+				}
+			} catch (err) {
+				uni.showToast({ title: err.message || '创建失败', icon: 'none', duration: 2000 })
+			} finally {
+				this.easycheckCreating = false
+			}
+		},
+		refreshEasycheckStatus() {
+			if (this.easycheckInstanceId) this.queryEasycheckStatus(this.easycheckInstanceId)
+		},
+		saveEasycheckForm() {
+			uni.setStorageSync('easycheck_mobile', this.easycheckForm.mobile)
+			uni.setStorageSync('easycheck_password', this.easycheckForm.password)
+			uni.setStorageSync('easycheck_instance_name', this.easycheckForm.instanceName)
+		},
+		loadEasycheckForm() {
+			this.easycheckForm.mobile = uni.getStorageSync('easycheck_mobile') || ''
+			this.easycheckForm.password = uni.getStorageSync('easycheck_password') || ''
+			this.easycheckForm.instanceName = uni.getStorageSync('easycheck_instance_name') || ''
 		}
 	},
 }
@@ -901,7 +1119,7 @@ export default {
 	bottom: 0; left: 0; right: 0;
 	background: #ffffff;
 	border-radius: 20px 20px 0 0;
-	max-height: 80vh;
+	max-height: 90vh;
 	display: flex;
 	flex-direction: column;
 	animation: sheetUp 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -930,7 +1148,7 @@ export default {
 	padding: 8px 20px 32px;
 	flex: 1;
 	overflow-y: auto;
-	max-height: 60vh;
+	max-height: 75vh;
 	width: 100%;
 	box-sizing: border-box;
 }
@@ -1111,6 +1329,58 @@ export default {
 }
 .settings-update-btn:active { opacity: 0.8; }
 .settings-update-btn-text { font-size: 16px; font-weight: 600; color: white; }
+
+/* ========== Easycheck Modal ========== */
+.easycheck-title {
+	font-size: 18px; font-weight: 700; color: #1a1a2e;
+	text-align: center; margin: 8px 0 20px;
+}
+.form-group { margin-bottom: 16px; }
+.form-label {
+	display: block; font-size: 14px; font-weight: 600;
+	color: #1a1a2e; margin-bottom: 6px;
+}
+.form-optional { font-size: 12px; color: #8a8a9a; font-weight: 400; }
+.form-input {
+	width: 100%; height: 48px; padding: 0 14px;
+	background: #f5f6f8; border-radius: 12px; border: none;
+	font-size: 15px; color: #1a1a2e; box-sizing: border-box;
+}
+.form-input::placeholder { color: #a0a0b8; }
+.form-input:focus {
+	background: #ffffff;
+	box-shadow: 0 0 0 2px rgba(124,92,252,0.15);
+}
+.easycheck-btn {
+	display: flex; align-items: center; justify-content: center;
+	height: 50px; border-radius: 14px;
+	background: linear-gradient(135deg, #7c5cfc 0%, #a78bfa 100%);
+	font-size: 16px; font-weight: 700; color: white;
+	margin-top: 24px; transition: all 0.2s ease;
+}
+.easycheck-btn:active { opacity: 0.85; transform: scale(0.98); }
+.easycheck-btn.loading { opacity: 0.7; pointer-events: none; }
+.easycheck-btn.secondary {
+	background: #1c1c1e; margin-top: 16px;
+}
+.easycheck-btn.secondary:active { opacity: 0.8; }
+.easycheck-status-card {
+	background: #f8f9fc; border-radius: 14px; padding: 16px;
+}
+.status-row-item {
+	display: flex; justify-content: space-between; align-items: center;
+	padding: 10px 0; font-size: 14px;
+}
+.status-row-item + .status-row-item { border-top: 1px solid #e8e8ed; }
+.status-label { color: #8a8a9a; font-weight: 500; flex-shrink: 0; margin-right: 12px; }
+.status-value { color: #1a1a2e; font-weight: 600; text-align: right; word-break: break-all; }
+.status-value.mono { font-family: 'SF Mono', Menlo, Consolas, monospace; font-size: 13px; }
+.easycheck-badge {
+	display: inline-flex; align-items: center;
+	padding: 3px 12px; border-radius: 10px; font-size: 13px; font-weight: 600;
+}
+.easycheck-badge.running { background: rgba(52,199,89,0.12); color: #34c759; }
+.easycheck-badge.stopped { background: rgba(142,142,147,0.12); color: #8a8a9a; }
 
 
 </style>

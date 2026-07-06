@@ -2,8 +2,8 @@
     "name" : "牛马工具箱",
     "appid" : "__UNI__A74E85C",
     "description" : "",
-    "versionName" : "1.1.2",
-    "versionCode" : 20260704,
+    "versionName" : "1.1.3",
+    "versionCode" : 20260707,
     "transformPx" : false,
     /* 5+App特有相关 */
     "app-plus" : {
@@ -94,7 +94,7 @@
     "quickapp" : {},
     /* 小程序特有相关 */
     "mp-weixin" : {
-        "appid" : "",
+        "appid" : "wx4bb83c5fe3db8f55",
         "setting" : {
             "urlCheck" : false
         },
@@ -112,5 +112,11 @@
     "uniStatistics" : {
         "enable" : false
     },
-    "vueVersion" : "3"
+    "vueVersion" : "3",
+    "h5" : {
+        "router" : {
+            "base" : "./",
+            "mode" : "hash"
+        }
+    }
 }
