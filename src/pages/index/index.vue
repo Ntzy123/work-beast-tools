@@ -32,23 +32,23 @@
 			<image src="/static/images/person.png" class="section-label-icon" />
 			<text class="section-label-text">人员状态</text>
 		</view>
-		<view class="status-card" @click="toggleStatusDetail">
+		<view class="status-card" @click="statusLoaded && toggleStatusDetail()">
 			<view class="status-row">
 				<view class="status-info">
 					<view class="status-name-row">
-						<text class="status-name">{{ statusData.name }}</text>
-						<image :src="statusData.online ? '/static/images/status-online.png' : '/static/images/status-offline.png'" class="status-dot-img" />
+						<text class="status-name">{{ statusLoaded ? statusData.name : '加载中...' }}</text>
+						<image v-if="statusLoaded" :src="statusData.online ? '/static/images/status-online.png' : '/static/images/status-offline.png'" class="status-dot-img" />
 					</view>
-					<text class="status-distance">{{ statusData.distanceText }}</text>
+					<text class="status-distance" v-if="statusLoaded">{{ statusData.distanceText }}</text>
 				</view>
-				<view class="status-meta">
+				<view class="status-meta" v-if="statusLoaded">
 					<text class="status-time">{{ statusData.timeText }}</text>
 				</view>
-				<view :class="['status-chevron', { expanded: statusExpanded }]">
+				<view v-if="statusLoaded" :class="['status-chevron', { expanded: statusExpanded }]">
 					<image src="/static/images/chevron-down.png" class="chevron-icon" />
 				</view>
 			</view>
-			<view :class="['status-detail', { show: statusExpanded }]">
+			<view v-if="statusLoaded" :class="['status-detail', { show: statusExpanded }]">
 				<view class="status-detail-inner">
 					<view class="detail-row">
 						<text class="detail-label">状态</text>
@@ -276,14 +276,15 @@ export default {
 			statusExpanded: false,
 			statusTimer: null,
 			statusData: {
-				name: '李仕科',
-				online: true,
+				name: '',
+				online: false,
 				distance: 0,
 				timestamp: 0,
-				distanceText: '加载中...',
+				distanceText: '',
 				timeText: '',
 				lastPunchText: ''
-			}
+			},
+			statusLoaded: false
 		}
 	},
 	onLoad() {
@@ -577,8 +578,10 @@ export default {
 						lastPunchText: timeStr
 					}
 				}
+				this.statusLoaded = true
 			} catch (e) {
 				console.log('获取人员状态失败:', e)
+				this.statusLoaded = true
 			}
 		},
 		scheduleNextStatusFetch() {
