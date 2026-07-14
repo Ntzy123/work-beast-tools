@@ -30,13 +30,14 @@ const DEFAULT_SCALE = 2
 // 单独指定尺寸的图标（icon键名 → 输出像素）
 const SIZE_OVERRIDES = {
   'location-pin': 32,
+  'collage': 48,
 }
 
 // 默认颜色（用在浅色背景上的图标）
 const DEFAULT_COLOR = '#8a8a9a'
 
 // 白色图标（用在深色/彩色背景上，如 tool-icon、upload-icon）
-const WHITE_ICONS = new Set(['camera', 'image', 'moon', 'water'])
+const WHITE_ICONS = new Set(['camera', 'collage', 'image', 'moon', 'water'])
 
 // 紫色图标（应用强调色，如 person）
 const PURPLE_ICONS = new Set(['person'])

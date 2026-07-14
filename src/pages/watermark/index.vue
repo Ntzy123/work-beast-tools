@@ -9,8 +9,14 @@
 					<image src="/static/images/arrow-left.png" style="width:22px;height:22px;"></image>
 				</view>
 				<text class="header-title">添加水印</text>
+			</view>
+			<view class="header-right">
+				<view class="collage-btn" @click="goToCollage">
+					<text>拼图</text>
+					<image src="/static/images/arrow-right.png" style="width:14px;height:14px;"></image>
+				</view>
+			</view>
 		</view>
-	</view>
 
 		<view class="content">
 			<!-- 上传 -->
@@ -280,6 +286,22 @@ export default {
 	methods: {
 		goBack() {
 			uni.navigateBack()
+		},
+		goToCollage() {
+			uni.chooseImage({
+				count: 9,
+				sizeType: ['original'],
+				sourceType: ['album'],
+				success: (res) => {
+					if (res.tempFilePaths.length < 2) {
+						uni.showToast({ title: '请至少选择 2 张图片', icon: 'none' })
+						return
+					}
+					getApp().globalData.collageImages = res.tempFilePaths
+					uni.navigateTo({ url: '/pages/collage/index' })
+				},
+				fail: () => {}
+			})
 		},
 		warmupCanvas() {
 			// #ifdef APP-PLUS
@@ -827,6 +849,23 @@ $shadow: 0 1px 8px rgba(0,0,0,0.04);
 	box-shadow: $shadow;
 }
 .header-close:active { background: $border; }
+
+.header-right {
+	display: flex;
+	align-items: center;
+}
+
+.collage-btn {
+	display: flex;
+	align-items: center;
+	gap: 2px;
+	font-size: 14px;
+	font-weight: 500;
+	color: $accent;
+}
+.collage-btn:active {
+	opacity: 0.6;
+}
 
 /* ===== Content ===== */
 .content {

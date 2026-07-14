@@ -84,6 +84,7 @@
 					<image v-if="index === 0" src="/static/images/image.png" style="width:24px;height:24px;"></image>
 					<image v-if="index === 1" src="/static/images/moon.png" style="width:24px;height:24px;"></image>
 					<image v-if="index === 2" src="/static/images/water.png" style="width:24px;height:24px;"></image>
+					<image v-if="index === 3" src="/static/images/collage.png" style="width:24px;height:24px;"></image>
 				</view>
 				<view class="tool-content">
 					<text class="tool-name">{{ app.name }}</text>
@@ -329,7 +330,8 @@ export default {
 			utilityApps: [
 				{ icon: '🖼️', name: '添加水印', desc: '给照片添加上时间、姓名水印和二维码', path: 'pages/watermark/index' },
 				{ icon: '🌙', name: '自动夜答', desc: '查看或创建自动夜答实例', action: 'openEasycheck' },
-				{ icon: '🚰', name: '查询送水', desc: '查看今日白班送水情况', action: 'queryWater' }
+				{ icon: '🚰', name: '查询送水', desc: '查看今日白班送水情况', action: 'queryWater' },
+				{ icon: '🧩', name: '拼图', desc: '多图快速拼接合成', action: 'openCollage' }
 			],
 			filteredApps: null,
 			statusExpanded: false,
@@ -583,6 +585,23 @@ export default {
 			}
 			if (app.action === 'queryWater') { this.queryWaterDelivery(); return }
 			if (app.action === 'openEasycheck') { this.handleEasycheck(); return }
+			if (app.action === 'openCollage') {
+				uni.chooseImage({
+					count: 9,
+					sizeType: ['original'],
+					sourceType: ['album'],
+					success: (res) => {
+						if (res.tempFilePaths.length < 2) {
+							uni.showToast({ title: '请至少选择 2 张图片', icon: 'none' })
+							return
+						}
+						getApp().globalData.collageImages = res.tempFilePaths
+						uni.navigateTo({ url: '/pages/collage/index' })
+					},
+					fail: () => {}
+				})
+				return
+			}
 			if (app.url) { this.openExternalUrl(app.url); return }
 			if (app.path) {
 				const url = app.path.startsWith('/') ? app.path : '/' + app.path
@@ -1045,6 +1064,7 @@ export default {
 .tool-card:nth-child(1) { animation-delay: 0.05s; }
 .tool-card:nth-child(2) { animation-delay: 0.1s; }
 .tool-card:nth-child(3) { animation-delay: 0.15s; }
+.tool-card:nth-child(4) { animation-delay: 0.2s; }
 
 .tool-card.hidden {
 	display: none;
@@ -1072,6 +1092,7 @@ export default {
 .tool-icon-1 { background: #7c5cfc; }
 .tool-icon-2 { background: #ec4899; }
 .tool-icon-3 { background: #06b6d4; }
+.tool-icon-4 { background: #f59e0b; }
 
 .tool-content {
 	flex: 1;

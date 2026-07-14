@@ -2,6 +2,7 @@
 import { checkUpdate } from "@/utils/update"
 
 export default {
+  globalData: {},
   onLaunch: function () {
     console.log("App Launch")
     // 静默检查更新
