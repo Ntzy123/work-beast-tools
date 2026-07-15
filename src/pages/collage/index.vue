@@ -220,6 +220,7 @@ export default {
 				try {
 					await saveToAlbum(tempPath)
 					uni.showToast({ title: '已保存到相册', icon: 'success', duration: 2000 })
+					setTimeout(() => uni.navigateBack(), 100)
 				} catch (saveErr) {
 					// #ifdef H5
 					const link = document.createElement('a')
@@ -227,6 +228,7 @@ export default {
 					link.download = 'collage.png'
 					link.click()
 					uni.showToast({ title: '已开始下载', icon: 'none', duration: 2000 })
+					setTimeout(() => uni.navigateBack(), 100)
 					// #endif
 					// #ifndef H5
 					if (saveErr.errMsg && saveErr.errMsg.includes('auth')) {
