@@ -36,13 +36,14 @@
 			<view class="status-row">
 				<view class="status-info">
 					<view class="status-name-row">
-						<text class="status-name">{{ statusLoaded ? statusData.name : '加载中...' }}</text>
-						<image v-if="statusLoaded" :src="statusData.online ? '/static/images/status-online.png' : '/static/images/status-offline.png'" class="status-dot-img" />
+						<text class="status-name">{{ primaryPerson.name }}</text>
+						<image v-if="statusLoaded" :src="primaryPerson.online ? '/static/images/status-online.png' : '/static/images/status-offline.png'" class="status-dot-img" />
 					</view>
-					<text class="status-distance" v-if="statusLoaded">{{ statusData.distanceText }}</text>
+					<text class="status-distance" v-if="statusLoaded">{{ primaryPerson.distanceText }}</text>
 				</view>
 				<view class="status-meta" v-if="statusLoaded">
-					<text class="status-time">{{ statusData.timeText }}</text>
+					<text class="status-time">{{ primaryPerson.timeText }}</text>
+					<text v-if="statusPersonList.length > 1" class="status-count-label">共 {{ statusPersonList.length }} 人</text>
 				</view>
 				<view v-if="statusLoaded" :class="['status-chevron', { expanded: statusExpanded }]">
 					<image src="/static/images/chevron-down.png" class="chevron-icon" />
@@ -50,16 +51,20 @@
 			</view>
 			<view v-if="statusLoaded" :class="['status-detail', { show: statusExpanded }]">
 				<view class="status-detail-inner">
-					<view class="detail-row">
-						<text class="detail-label">状态</text>
-						<view :class="['status-badge', statusData.online ? 'online' : 'offline']">
-							<image :src="statusData.online ? '/static/images/status-online.png' : '/static/images/status-offline.png'" class="badge-dot-img" />
-							<text>{{ statusData.online ? '在线' : '离线' }}</text>
+					<view
+						v-for="(person, index) in statusPersonList"
+						:key="index"
+						class="person-row"
+						:class="{ 'person-row-active': index === statusPrimaryIndex }"
+						@click.stop="selectPerson(index)"
+					>
+						<view class="person-row-left">
+							<text class="person-row-name">{{ person.name }}</text>
+							<image :src="person.online ? '/static/images/status-online.png' : '/static/images/status-offline.png'" class="person-row-dot" />
 						</view>
-					</view>
-					<view class="detail-row">
-						<text class="detail-label">最近一次状态更新</text>
-						<text class="detail-value mono">{{ statusData.lastPunchText }}</text>
+						<view class="person-row-right">
+							<text class="person-row-distance">{{ person.distanceText }}</text>
+						</view>
 					</view>
 				</view>
 			</view>
@@ -336,15 +341,8 @@ export default {
 			filteredApps: null,
 			statusExpanded: false,
 			statusTimer: null,
-			statusData: {
-				name: '',
-				online: false,
-				distance: 0,
-				timestamp: 0,
-				distanceText: '',
-				timeText: '',
-				lastPunchText: ''
-			},
+			statusPersonList: [],
+			statusPrimaryIndex: 0,
 			statusLoaded: false,
 			showEasycheckModal: false,
 			easycheckMode: 'create',
@@ -358,6 +356,17 @@ export default {
 			easycheckCreating: false,
 			easycheckStatusLoading: false,
 			easycheckServerOffline: false
+		}
+	},
+	computed: {
+		primaryPerson() {
+			if (!this.statusLoaded) {
+				return { name: '加载中...', online: false, distanceText: '', timeText: '' }
+			}
+			if (this.statusPersonList.length === 0) {
+				return { name: '暂无人员数据', online: false, distanceText: '', timeText: '' }
+			}
+			return this.statusPersonList[this.statusPrimaryIndex] || this.statusPersonList[0]
 		}
 	},
 	onLoad() {
@@ -636,6 +645,10 @@ export default {
 		toggleStatusDetail() {
 			this.statusExpanded = !this.statusExpanded
 		},
+		selectPerson(index) {
+			this.statusPrimaryIndex = index
+			this.statusExpanded = false
+		},
 		async fetchStatus() {
 			try {
 				const res = await new Promise((resolve, reject) => {
@@ -651,23 +664,35 @@ export default {
 						fail: e => reject(e)
 					})
 				})
-				if (res.statusCode === 200 && res.data && res.data.records && res.data.records.length > 0) {
-					const r = res.data.records[0]
+				if (res.statusCode === 200 && res.data) {
 					const ts = new Date(res.data.timestamp)
 					const pad = n => String(n).padStart(2, '0')
 					const timeStr = `${ts.getFullYear()}-${pad(ts.getMonth()+1)}-${pad(ts.getDate())} ${pad(ts.getHours())}:${pad(ts.getMinutes())}:${pad(ts.getSeconds())}`
-					const isOnline = r.status === '1'
-					const dist = r.distance_m || 0
-					const distText = dist > 1000 ? `距项目 ${(dist / 1000).toFixed(2)} km` : `距项目 ${Math.round(dist)} m`
-					this.statusData = {
-						name: r.name || '李仕科',
-						online: isOnline,
-						distance: dist,
-						timestamp: res.data.timestamp,
-						distanceText: distText,
-						timeText: timeStr,
-						lastPunchText: timeStr
-					}
+					const records = res.data.records || []
+					// 排序：在线+有定位(按距离升序) > 在线+无定位 > 离线
+					const sorted = [...records].sort((a, b) => {
+						const scoreA = a.status === '1' && (a.distance_m || 0) > 0
+							? a.distance_m
+							: a.status === '1' ? 999999 : 999999 + 1
+						const scoreB = b.status === '1' && (b.distance_m || 0) > 0
+							? b.distance_m
+							: b.status === '1' ? 999999 : 999999 + 1
+						return scoreA - scoreB
+					})
+					this.statusPersonList = sorted.map(r => {
+						const dist = r.distance_m || 0
+						const distText = dist > 0
+							? (dist > 1000 ? `距项目 ${(dist / 1000).toFixed(2)} km` : `距项目 ${Math.round(dist)} m`)
+							: '定位未开启'
+						return {
+							name: r.name || '未知',
+							online: r.status === '1',
+							distance: dist,
+							distanceText: distText,
+							timeText: timeStr
+						}
+					})
+					this.statusPrimaryIndex = 0
 				}
 				this.statusLoaded = true
 			} catch (e) {
@@ -976,7 +1001,7 @@ export default {
 .status-chevron.expanded { transform: rotate(180deg); }
 .chevron-icon { width: 14px; height: 14px; display: block; }
 
-/* Expanded details */
+/* Expanded - person list */
 .status-detail {
 	overflow: hidden;
 	max-height: 0;
@@ -984,35 +1009,60 @@ export default {
 	padding: 0 48px 0 0;
 }
 .status-detail.show {
-	max-height: 200px;
+	max-height: 300px;
 	padding-top: 12px;
 }
 .status-detail-inner {
 	border-top: 1px solid #e8e8ed;
-	padding-top: 12px;
+	padding-top: 8px;
 }
-.detail-row {
-	display: flex; justify-content: space-between; align-items: center;
-	padding: 5px 0; font-size: 13px;
+.person-row {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 10px 14px;
+	margin: 2px 0;
+	border-radius: 10px;
+	transition: background 0.15s ease;
 }
-.detail-label { color: #8a8a9a; }
-.detail-value { color: #1a1a2e; font-weight: 500; }
-.detail-value.mono {
-	font-family: 'SF Mono', Menlo, Consolas, monospace;
+.person-row:active {
+	background: #f0f0f4;
+}
+.person-row-active {
+	background: #f5f0ff;
+}
+.person-row-active:active {
+	background: #ede6ff;
+}
+.person-row-left {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+.person-row-name {
+	font-size: 14px;
+	font-weight: 600;
+	color: #1a1a2e;
+}
+.person-row-dot {
+	width: 8px;
+	height: 8px;
+	flex-shrink: 0;
+	display: block;
+}
+.person-row-right {
+	flex-shrink: 0;
+}
+.person-row-distance {
 	font-size: 12px;
+	color: #8a8a9a;
 }
-.status-badge {
-	display: inline-flex; align-items: center;
-	padding: 2px 10px; border-radius: 10px; font-size: 12px; font-weight: 500;
-}
-.status-badge.online {
-	background: rgba(52,199,89,0.12); color: #34c759;
-}
-.status-badge.offline {
-	background: rgba(142,142,147,0.12); color: #8a8a9a;
-}
-.badge-dot-img {
-	width: 7px; height: 7px; display: block; margin-right: 6px;
+.status-count-label {
+	display: block;
+	font-size: 10px;
+	color: #b0b0c0;
+	margin-top: 2px;
+	white-space: nowrap;
 }
 
 /* ========== Search ========== */
