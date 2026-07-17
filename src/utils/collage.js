@@ -155,8 +155,6 @@ export function renderCollage(opts) {
 		height,
 		thisArg,
 		infos: externalInfos,
-		borderWidth = 2,
-		borderColor = '#ffffff',
 	} = opts
 
 	return new Promise(async (resolve, reject) => {
@@ -164,13 +162,7 @@ export function renderCollage(opts) {
 			const infos = externalInfos || await loadImageInfos(images)
 			const ctx = uni.createCanvasContext(canvasId, thisArg)
 
-			// 白底
-			ctx.setFillStyle('#ffffff')
-			ctx.fillRect(0, 0, width, height)
-			ctx.draw(true)
-			await new Promise((r) => setTimeout(r, 50))
-
-			// 绘制每张图片（cover crop）
+			// 绘制每张图片（cover crop，无缝拼接）
 			for (let i = 0; i < template.length; i++) {
 				if (i >= images.length) break
 				const [nx, ny, nw, nh] = template[i]
@@ -198,21 +190,7 @@ export function renderCollage(opts) {
 				ctx.drawImage(info.path, sx, sy, sw, sh, x, y, w, h)
 			}
 
-			// 格子边框
-			ctx.setStrokeStyle(borderColor)
-			ctx.setLineWidth(borderWidth)
-			for (let i = 0; i < template.length; i++) {
-				if (i >= images.length) break
-				const [nx, ny, nw, nh] = template[i]
-				ctx.strokeRect(
-					Math.round(nx * width) + 0.5,
-					Math.round(ny * height) + 0.5,
-					Math.round(nw * width),
-					Math.round(nh * height)
-				)
-			}
-
-			// 导出
+			// 导出为 JPEG（高质量高压缩）
 			ctx.draw(false, () => {
 				uni.canvasToTempFilePath({
 					canvasId,
@@ -220,7 +198,8 @@ export function renderCollage(opts) {
 					width, height,
 					destWidth: width,
 					destHeight: height,
-					fileType: 'png',
+					fileType: 'jpg',
+					quality: 0.85,
 					success: (res) => resolve(res.tempFilePath),
 					fail: reject,
 				}, thisArg)
