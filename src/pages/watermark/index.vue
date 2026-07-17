@@ -283,6 +283,14 @@ export default {
 	
 	this.warmupCanvas()
 	},
+	onShow() {
+		const app = getApp()
+		if (app.globalData.collageSaveMsg) {
+			const msg = app.globalData.collageSaveMsg
+			app.globalData.collageSaveMsg = ''
+			uni.showToast({ title: msg, icon: 'success', duration: 2000 })
+		}
+	},
 	methods: {
 		goBack() {
 			uni.navigateBack()

@@ -219,16 +219,16 @@ export default {
 				// 保存到相册
 				try {
 					await saveToAlbum(tempPath)
-					uni.showToast({ title: '已保存到相册', icon: 'success', duration: 2000 })
-					setTimeout(() => uni.navigateBack(), 100)
+					getApp().globalData.collageSaveMsg = '已保存到相册'
+					uni.navigateBack()
 				} catch (saveErr) {
 					// #ifdef H5
 					const link = document.createElement('a')
 					link.href = tempPath
-					link.download = 'collage.png'
+					link.download = 'collage.jpg'
 					link.click()
-					uni.showToast({ title: '已开始下载', icon: 'none', duration: 2000 })
-					setTimeout(() => uni.navigateBack(), 100)
+					getApp().globalData.collageSaveMsg = '已开始下载'
+					uni.navigateBack()
 					// #endif
 					// #ifndef H5
 					if (saveErr.errMsg && saveErr.errMsg.includes('auth')) {

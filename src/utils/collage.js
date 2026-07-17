@@ -162,18 +162,34 @@ export function renderCollage(opts) {
 			const infos = externalInfos || await loadImageInfos(images)
 			const ctx = uni.createCanvasContext(canvasId, thisArg)
 
+			// warm up: 初始化 canvas 渲染上下文（不画白底，仅用于确保后续 drawImage 生效）
+			ctx.draw(true)
+			await new Promise((r) => setTimeout(r, 50))
+
+			// 计算每个格子的像素位置
+			const cellInfos = template.map(([nx, ny, nw, nh]) => ({
+				x: Math.round(nx * width),
+				y: Math.round(ny * height),
+				w: Math.round(nw * width),
+				h: Math.round(nh * height),
+			}))
+
+			// 找最右列起始 x 和最底行起始 y，把它们贴到画布边缘（消除 0.33 等近似值造成的白边）
+			const maxX = Math.max(...cellInfos.map(c => c.x))
+			const maxY = Math.max(...cellInfos.map(c => c.y))
+			for (const cell of cellInfos) {
+				if (cell.x === maxX) cell.w = width - cell.x
+				if (cell.y === maxY) cell.h = height - cell.y
+			}
+
 			// 绘制每张图片（cover crop，无缝拼接）
-			for (let i = 0; i < template.length; i++) {
+			for (let i = 0; i < cellInfos.length; i++) {
 				if (i >= images.length) break
-				const [nx, ny, nw, nh] = template[i]
-				const x = Math.round(nx * width)
-				const y = Math.round(ny * height)
-				const w = Math.round(nw * width)
-				const h = Math.round(nh * height)
+				const cell = cellInfos[i]
 				const info = infos[i]
 
 				const imgAspect = info.width / info.height
-				const regionAspect = w / h
+				const regionAspect = cell.w / cell.h
 				let sx, sy, sw, sh
 				if (imgAspect > regionAspect) {
 					sh = info.height
@@ -187,7 +203,7 @@ export function renderCollage(opts) {
 					sy = (info.height - sh) / 2
 				}
 
-				ctx.drawImage(info.path, sx, sy, sw, sh, x, y, w, h)
+				ctx.drawImage(info.path, sx, sy, sw, sh, cell.x, cell.y, cell.w, cell.h)
 			}
 
 			// 导出为 JPEG（高质量高压缩）

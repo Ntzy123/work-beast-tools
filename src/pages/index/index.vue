@@ -399,6 +399,15 @@ export default {
 		this.fetchStatus()
 		this.scheduleNextStatusFetch()
 	},
+	onShow() {
+		// 接住拼图页保存成功的提示
+		const app = getApp()
+		if (app.globalData.collageSaveMsg) {
+			const msg = app.globalData.collageSaveMsg
+			app.globalData.collageSaveMsg = ''
+			uni.showToast({ title: msg, icon: 'success', duration: 2000 })
+		}
+	},
 	onUnload() {
 		if (this.statusTimer) {
 			clearTimeout(this.statusTimer)
