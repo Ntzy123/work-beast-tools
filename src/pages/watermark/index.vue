@@ -181,7 +181,6 @@ import QRCode from 'qrcode'
 import CryptoJS from 'crypto-js'
 import staffMap from '@/utils/staffMap.json'
 import piexif from 'piexifjs'
-import apiConfig from '@/config/api.config.json'
 
 export default {
 	data() {
@@ -261,27 +260,29 @@ export default {
 		this.statusBarHeight = systemInfo.statusBarHeight || 0
 		this.screenWidth = systemInfo.windowWidth
 		this.watermarkScale = this.referenceScreenWidth / this.screenWidth
+
+		// 使用本地持久化密钥（如需更新手动修改）
 		const cachedKey = uni.getStorageSync('watermark_encryption_key')
 		if (cachedKey) {
 			this.encryptionKey = cachedKey
 		} else {
-		uni.setStorageSync('watermark_encryption_key', this.encryptionKey)
-	}
-	
-	// 读取上次保存的姓名配置
-	const savedConfig = uni.getStorageSync('watermark_config')
-	if (savedConfig) {
-		try {
-			const config = JSON.parse(savedConfig)
-			if (config.name) {
-				this.formData.name = config.name
-			}
-		} catch (e) {
-			// JSON 解析失败，忽略
+			uni.setStorageSync('watermark_encryption_key', this.encryptionKey)
 		}
-	}
-	
-	this.warmupCanvas()
+
+		// 读取上次保存的姓名配置
+		const savedConfig = uni.getStorageSync('watermark_config')
+		if (savedConfig) {
+			try {
+				const config = JSON.parse(savedConfig)
+				if (config.name) {
+					this.formData.name = config.name
+				}
+			} catch (e) {
+				// JSON 解析失败，忽略
+			}
+		}
+
+		this.warmupCanvas()
 	},
 	onShow() {
 		const app = getApp()
@@ -290,6 +291,17 @@ export default {
 			app.globalData.collageSaveMsg = ''
 			uni.showToast({ title: msg, icon: 'success', duration: 2000 })
 		}
+	},
+	onReady() {
+		// #ifdef APP-PLUS
+		// DOM 完全就绪后，确保 Canvas 预热完整
+		if (!this.fontReady) {
+			this.warmupCanvas()
+		}
+		setTimeout(() => {
+			this.silentPreRun()
+		}, 200)
+		// #endif
 	},
 	methods: {
 		goBack() {
@@ -321,17 +333,24 @@ export default {
 				ctx.draw(false, () => {
 					setTimeout(() => {
 						this.fontReady = true
-						console.log('Canvas 预热完成，字体已加载')
+						console.log('[Canvas] 预热完成，字体已加载')
 					}, 500)
 				})
 			})
+			// 安全超时：即使 draw 回调未触发也确保 fontReady
+			setTimeout(() => {
+				if (!this.fontReady) {
+					this.fontReady = true
+					console.log('[Canvas] 预热超时回退，强制完成')
+				}
+			}, 3000)
 			// #endif
-			
+
 			// #ifndef APP-PLUS
 			this.fontReady = true
 			// #endif
 		},
-		
+
 		async waitForFont() {
 			if (this.fontReady) return
 			const maxWait = 3000
@@ -341,31 +360,23 @@ export default {
 			}
 			await new Promise(resolve => setTimeout(resolve, 300))
 		},
-		
-		async fetchKeyFromServer() {
-			try {
-				const config = apiConfig.watermarkKey
-				const response = await new Promise((resolve, reject) => {
-					uni.request({
-						url: config.url,
-						method: config.method,
-						header: config.headers,
-						success: (res) => { resolve(res) },
-						fail: (err) => { reject(err) }
-					})
+
+		silentPreRun() {
+			// #ifdef APP-PLUS
+			// 静默执行一次完整的 Canvas 绘制流程，确保首次使用时 Canvas 上下文已就绪
+			const w = 100
+			const h = 100
+			this.canvasWidth = w
+			this.canvasHeight = h
+			this.$nextTick(() => {
+				const ctx = uni.createCanvasContext('watermarkCanvas', this)
+				ctx.setFillStyle('rgba(0,0,0,0)')
+				ctx.fillRect(0, 0, w, h)
+				ctx.draw(false, () => {
+					console.log('[Canvas] 静默预热完成')
 				})
-				if (response.statusCode === 200 && response.data) {
-					const data = response.data
-					if (data.code === 0 && data.result && data.result.key) {
-						const newKey = data.result.key
-						this.encryptionKey = newKey
-						uni.setStorageSync('watermark_encryption_key', newKey)
-						console.log('加密key已更新:', newKey)
-					}
-				}
-			} catch (error) {
-				console.log('获取加密key失败，使用缓存key:', error)
-			}
+			})
+			// #endif
 		},
 		
 		generateRandomCoordinates() {
@@ -432,7 +443,6 @@ export default {
 			this.generateWatermark()
 		},
 		async generateWatermark() {
-			await this.fetchKeyFromServer()
 			if (this.multiImageMode > 1) { this.generateMultiImageWatermarks() }
 			else if (this.imagePaths.length > 1) { this.generateBatchWatermarks() }
 			else { uni.showLoading({ title: '生成中...' }); this.drawWatermark() }
