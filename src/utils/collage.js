@@ -174,13 +174,44 @@ export function renderCollage(opts) {
 				h: Math.round(nh * height),
 			}))
 
-			// 找最右列起始 x 和最底行起始 y，把它们贴到画布边缘（消除 0.33 等近似值造成的白边）
-			const maxX = Math.max(...cellInfos.map(c => c.x))
-			const maxY = Math.max(...cellInfos.map(c => c.y))
-			for (const cell of cellInfos) {
-				if (cell.x === maxX) cell.w = width - cell.x
-				if (cell.y === maxY) cell.h = height - cell.y
+			// 把行/列内因 0.33 等近似值造成的舍入误差，平均分给同组所有格子
+			// 这样所有格子长宽比保持一致，避免 cover-crop 方向不一致导致图片错位
+			const rowGroups = new Map()
+			const colGroups = new Map()
+			for (let i = 0; i < cellInfos.length; i++) {
+				const c = cellInfos[i]
+				if (!rowGroups.has(c.y)) rowGroups.set(c.y, [])
+				if (!colGroups.has(c.x)) colGroups.set(c.x, [])
+				rowGroups.get(c.y).push(i)
+				colGroups.get(c.x).push(i)
 			}
+
+			const distribute = (groups, totalSize, startKey) => {
+				for (const indices of groups.values()) {
+					const cells = indices.map(i => cellInfos[i])
+					if (cells.length <= 1) continue
+					const startVal = cells[0][startKey]
+					const sum = cells.reduce((s, c) => s + (startKey === 'y' ? c.h : c.w), 0)
+					const diff = totalSize - startVal - sum
+					if (diff === 0) continue
+					const each = Math.trunc(diff / cells.length)
+					let rem = diff - each * cells.length
+					let cursor = startVal
+					for (const cell of cells) {
+						cell[startKey] = cursor
+						if (startKey === 'y') cell.h += each
+						else cell.w += each
+						if (rem !== 0) {
+							if (startKey === 'y') cell.h += Math.sign(rem)
+							else cell.w += Math.sign(rem)
+							rem -= Math.sign(rem)
+						}
+						cursor += startKey === 'y' ? cell.h : cell.w
+					}
+				}
+			}
+			distribute(rowGroups, width, 'x')
+			distribute(colGroups, height, 'y')
 
 			// 绘制每张图片（cover crop，无缝拼接）
 			for (let i = 0; i < cellInfos.length; i++) {
