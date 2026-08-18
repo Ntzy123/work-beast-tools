@@ -364,8 +364,9 @@ export default {
 		silentPreRun() {
 			// #ifdef APP-PLUS
 			// 静默执行一次完整的 Canvas 绘制流程，确保首次使用时 Canvas 上下文已就绪
-			const w = 100
-			const h = 100
+			// 保持较大的默认尺寸预热，避免 canvas 从过小的 100x100 突变到真实尺寸导致 native 绘制失败
+			const w = this.canvasWidth || 750
+			const h = this.canvasHeight || 1334
 			this.canvasWidth = w
 			this.canvasHeight = h
 			this.$nextTick(() => {
@@ -402,13 +403,14 @@ export default {
 			return randomId
 		},
 		
-		generateQRCodeText() {
-			let staffId = staffMap[this.formData.name]
+		generateQRCodeText(customForm) {
+			const f = customForm || this.formData
+			let staffId = staffMap[f.name]
 			if (!staffId) staffId = this.generateRandomStaffId()
-			const dateStr = `${this.formData.date} ${this.formData.time.hour}:${this.formData.time.minute}:${String(this.formData.time.second).padStart(2, '0')}`
+			const dateStr = `${f.date} ${f.time.hour}:${f.time.minute}:${String(f.time.second).padStart(2, '0')}`
 			const timestamp = Math.floor(new Date(dateStr).getTime() / 1000)
 			const coords = this.generateRandomCoordinates()
-			const data = { g: { c: "GCJ-02", la: coords.la, lo: coords.lo, n: "" }, n: this.formData.name, or: 2, ot: timestamp, s: staffId }
+			const data = { g: { c: "GCJ-02", la: coords.la, lo: coords.lo, n: "" }, n: f.name, or: 2, ot: timestamp, s: staffId }
 			const plainText = JSON.stringify(data, null, 0)
 			const key = CryptoJS.enc.Utf8.parse(this.encryptionKey)
 			const encrypted = CryptoJS.AES.encrypt(plainText, key, { mode: CryptoJS.mode.ECB, padding: CryptoJS.pad.Pkcs7 })
@@ -418,15 +420,38 @@ export default {
 		chooseImage() {
 			uni.chooseImage({
 				count: 9,
+				sizeType: ['original'],
 				sourceType: ['album', 'camera'],
 				success: (res) => {
-					if (res.tempFilePaths.length === 1) { this.imagePath = res.tempFilePaths[0]; this.imagePaths = [] }
-					else { this.imagePaths = res.tempFilePaths; this.imagePath = '' }
+					// 选图后用原始 tempFilePaths 完成图片预热（触发系统加载/缓存资源），
+					// 必须保留原始路径，不要用 info.path 覆盖，避免 file:// 路径导致后续 getImageInfo/drawImage 失败
+					this.preloadImagePaths(res.tempFilePaths).then(() => {
+						const paths = res.tempFilePaths
+						if (paths.length === 1) { this.imagePath = paths[0]; this.imagePaths = [] }
+						else { this.imagePaths = paths; this.imagePath = '' }
+					})
 				},
 				fail: (err) => {}
 			})
 		},
+		preloadImagePaths(paths) {
+			// 带重试的预热：chooseImage 未指定 sizeType 时 App 端可能异步压缩图片，
+			// tempFilePath 返回瞬间文件可能尚未写完，getImageInfo 会 fail，需要等待重试
+			const preloadOne = (p, retries) => new Promise((resolve) => {
+				uni.getImageInfo({
+					src: p,
+					success: () => resolve(true),
+					fail: () => {
+						if (retries > 0) { setTimeout(() => { preloadOne(p, retries - 1).then(resolve) }, 400) }
+						else { console.warn('[Watermark] 图片预热失败（已重试）:', p); resolve(false) }
+					}
+				})
+			})
+			const tasks = (paths || []).map((p) => preloadOne(p, 5))
+			return Promise.all(tasks)
+		},
 		removeImage() { this.imagePath = ''; this.imagePaths = []; this.resultImage = '' },
+		resetImageSelection() { this.imagePath = ''; this.imagePaths = [] },
 		onDateChange(e) { this.formData.date = e.detail.value },
 		onTimeChange(e) { const value = e.detail.value || ''; const [h, m] = value.split(':'); if (h != null && m != null) { this.formData.time.hour = String(h).padStart(2,'0'); this.formData.time.minute = String(m).padStart(2,'0') } },
 		onSecondChange(e) { this.formData.time.second = parseInt(e.detail.value) },
@@ -462,13 +487,12 @@ export default {
 					const targetTime = new Date(baseTime.getTime() + timeOffset * 1000)
 					const td = `${targetTime.getFullYear()}-${String(targetTime.getMonth()+1).padStart(2,'0')}-${String(targetTime.getDate()).padStart(2,'0')}`
 					const th = String(targetTime.getHours()).padStart(2,'0'), tm = String(targetTime.getMinutes()).padStart(2,'0'), ts = targetTime.getSeconds()
-					const oTime = { ...this.formData.time }, oDate = this.formData.date
-					this.formData.date = td; this.formData.time = { hour: th, minute: tm, second: ts }; this.imagePath = sourceImage
+					// 用局部 form 传给绘制，避免修改 this.formData 触发 Vue 重渲染干扰 canvas 绘制
+					const batchForm = { name: this.formData.name, date: td, time: { hour: th, minute: tm, second: ts } }
 					await new Promise((resolve) => {
 						uni.showLoading({ title: `生成中 ${currentIndex+1}/${totalCount}` })
-						this.drawWatermarkForBatch(resolve, currentIndex === totalCount - 1)
+						this.drawWatermarkForBatch(resolve, currentIndex === totalCount - 1, batchForm, sourceImage)
 					})
-					if (currentIndex < totalCount - 1) { this.formData.time = oTime; this.formData.date = oDate }
 					currentIndex++
 				}
 			}
@@ -484,25 +508,47 @@ export default {
 				const targetTime = new Date(baseTime.getTime() + timeOffset * 1000)
 				const td = `${targetTime.getFullYear()}-${String(targetTime.getMonth()+1).padStart(2,'0')}-${String(targetTime.getDate()).padStart(2,'0')}`
 				const th = String(targetTime.getHours()).padStart(2,'0'), tm = String(targetTime.getMinutes()).padStart(2,'0'), ts = targetTime.getSeconds()
-				const oTime = { ...this.formData.time }, oDate = this.formData.date
-				this.formData.date = td; this.formData.time = { hour: th, minute: tm, second: ts }; this.imagePath = imagePath
+				// 用局部 form 传给绘制，避免修改 this.formData 触发 Vue 重渲染干扰 canvas 绘制
+				const batchForm = { name: this.formData.name, date: td, time: { hour: th, minute: tm, second: ts } }
 				await new Promise((resolve) => {
 					uni.showLoading({ title: `生成中 ${i+1}/${imageCount}` })
-					this.drawWatermarkForBatch(resolve, i === imageCount - 1)
+					this.drawWatermarkForBatch(resolve, i === imageCount - 1, batchForm, imagePath)
 				})
-				if (i < imageCount - 1) { this.formData.time = oTime; this.formData.date = oDate }
 			}
 		},
-		async drawWatermarkForBatch(callback, isLast) {
+		async drawWatermarkForBatch(callback, isLast, customForm, imagePath) {
 			await this.waitForFont()
-			uni.getImageInfo({ src: this.imagePath, success: (imageInfo) => {
+			const srcPath = imagePath || this.imagePath
+			let done = false
+			// 超时兜底：避免某一步回调丢失导致整个批量流程永久卡死
+			const timer = setTimeout(() => {
+				if (done) return
+				done = true
+				if (isLast) uni.hideLoading()
+				uni.showToast({ title: '生成超时，请重试', icon: 'none', duration: 2000 })
+				callback()
+			}, 15000)
+			// 统一失败出口：必须 hideLoading 收尾并明确报错，绝不无声卡死
+			const failBatch = (msg) => {
+				if (done) return
+				done = true
+				clearTimeout(timer)
+				console.error('[Watermark] 批量生成失败:', msg, '图片路径:', srcPath)
+				if (isLast) uni.hideLoading()
+				uni.showToast({ title: '生成失败：' + msg, icon: 'none', duration: 2000 })
+				callback()
+			}
+			uni.getImageInfo({ src: srcPath, success: (imageInfo) => {
+				if (done) return
 				const targetWidth = 1080, targetHeight = (imageInfo.height / imageInfo.width) * targetWidth
 				this.canvasWidth = targetWidth; this.canvasHeight = targetHeight
 				this.$nextTick(() => {
 					const ctx = uni.createCanvasContext('watermarkCanvas', this)
-					ctx.drawImage(this.imagePath, 0, 0, targetWidth, targetHeight)
-					this.drawWatermarkContent(ctx, targetWidth, targetHeight, targetWidth / 750)
+					// 使用原始 tempFilePath 绘制（imageInfo.path 在 App 端可能是 file://，canvas drawImage 不可靠）
+					ctx.drawImage(srcPath, 0, 0, targetWidth, targetHeight)
+					this.drawWatermarkContent(ctx, targetWidth, targetHeight, targetWidth / 750, customForm)
 					ctx.draw(false, () => {
+						if (done) return
 						let delay = 500;
 						// #ifdef APP-PLUS
 						delay = 800
@@ -511,24 +557,26 @@ export default {
 						delay = 300
 						// #endif
 						setTimeout(() => {
-							uni.canvasToTempFilePath({ canvasId: 'watermarkCanvas', width: targetWidth, height: targetHeight, destWidth: targetWidth, destHeight: targetHeight, fileType: 'jpg', quality: 0.9, success: (res) => { this.processImageWithExifForBatch(res.tempFilePath, callback, isLast) }, fail: () => { callback() } }, this)
+							if (done) return
+							uni.canvasToTempFilePath({ canvasId: 'watermarkCanvas', width: targetWidth, height: targetHeight, destWidth: targetWidth, destHeight: targetHeight, fileType: 'jpg', quality: 0.9, success: (res) => { done = true; clearTimeout(timer); this.processImageWithExifForBatch(res.tempFilePath, callback, isLast) }, fail: (err) => { failBatch('canvas导出失败') } }, this)
 						}, delay)
 					})
 				})
-			}, fail: () => { callback() } })
+			}, fail: (err) => { failBatch('图片加载失败') } })
 		},
-		drawWatermarkContent(ctx, targetWidth, targetHeight, scale) {
+		drawWatermarkContent(ctx, targetWidth, targetHeight, scale, customForm) {
+			const f = customForm || this.formData
 			const ws = this.watermarkScale
 			const edgePadding = 21 * ws, borderRadius = 16 * ws, bgColor = 'rgba(0, 0, 0, 0.3)', textColor = '#ffffff'
 			const timeFontSize = 74 * ws
 			ctx.setFontSize(timeFontSize)
 			ctx.font = `200 ${timeFontSize}px "SourceHanSerifCN"`
-			const timeText = this.formData.time.hour + ':' + this.formData.time.minute
+			const timeText = f.time.hour + ':' + f.time.minute
 			const timeInnerPadding = 15 * ws, timeColumnWidth = 223 * ws, textStartX = edgePadding + timeColumnWidth
 			const smallFontSize = 30 * ws
 			ctx.setFontSize(smallFontSize)
 			ctx.font = `${smallFontSize}px "SourceHanSerifCN"`
-			const nameText = this.formData.name, dateText = this.formatDate(this.formData.date)
+			const nameText = f.name, dateText = this.formatDate(f.date)
 			const dateTextWidth = ctx.measureText ? ctx.measureText(dateText).width : 180 * ws
 			const nameTextWidth = ctx.measureText ? ctx.measureText(nameText).width : 150 * ws
 			const infoBoxHeight = 106 * ws, infoBoxWidth = timeColumnWidth + Math.max(nameTextWidth, dateTextWidth) + 12 * ws, infoBoxX = edgePadding
@@ -553,7 +601,7 @@ export default {
 			ctx.setFontSize(smallFontSize)
 			ctx.fillText(location, locBoxX + 62 * this.watermarkScale, locBoxY + (locBoxHeight + smallFontSize) / 2 - 4 * this.watermarkScale)
 			try {
-				const qrCodeText = this.generateQRCodeText()
+				const qrCodeText = this.generateQRCodeText(f)
 				if (qrCodeText) {
 					const qrData = QRCode.create(qrCodeText, { errorCorrectionLevel: 'L' })
 					const modules = qrData.modules.data, mCount = qrData.modules.size
@@ -643,7 +691,7 @@ export default {
 			// #ifndef H5
 			this.checkStoragePermissionAndSaveForBatch(imageData, callback, isLast)
 			// #endif
-			if (isLast) { uni.hideLoading(); this.saveNameConfig(); uni.showToast({title:'全部生成完成',icon:'success'}) }
+			if (isLast) { uni.hideLoading(); this.saveNameConfig(); this.resetImageSelection(); uni.showToast({title:'全部生成完成',icon:'success'}) }
 			callback()
 		},
 		// #ifndef H5
@@ -679,6 +727,7 @@ export default {
 				this.$nextTick(() => {
 					const ctx = uni.createCanvasContext('watermarkCanvas', this)
 					const scale = targetWidth / 750
+					// 使用原始 tempFilePath 绘制（imageInfo.path 在 App 端可能是 file://，canvas drawImage 不可靠）
 					ctx.drawImage(this.imagePath, 0, 0, targetWidth, targetHeight)
 					this.drawWatermarkContent(ctx, targetWidth, targetHeight, scale)
 					ctx.draw(false, () => {
@@ -699,7 +748,7 @@ export default {
 		saveImage() {
 			if (!this.resultImage) return
 			// #ifdef H5
-			try { const link=document.createElement('a'); link.href=this.resultImage; link.download=this.generateTimestampFileName(); document.body.appendChild(link); link.click(); document.body.removeChild(link); this.saveNameConfig(); uni.showToast({title:'保存成功',icon:'success'}) } catch(e) { uni.showToast({title:`下载失败: ${e.message||'未知错误'}`,icon:'none',duration:3000}) }
+			try { const link=document.createElement('a'); link.href=this.resultImage; link.download=this.generateTimestampFileName(); document.body.appendChild(link); link.click(); document.body.removeChild(link); this.saveNameConfig(); this.resetImageSelection(); uni.showToast({title:'保存成功',icon:'success'}) } catch(e) { uni.showToast({title:`下载失败: ${e.message||'未知错误'}`,icon:'none',duration:3000}) }
 			// #endif
 			// #ifndef H5
 			this.checkStoragePermissionAndSave()
@@ -733,7 +782,7 @@ export default {
 		copyFileToTarget(timeoutId, targetDirEntry, fileName) {
 			plus.io.resolveLocalFileSystemURL(this.resultImage, (sourceEntry) => {
 				this.findAvailableFileName(targetDirEntry, fileName, (finalFileName) => {
-					sourceEntry.copyTo(targetDirEntry, finalFileName, (newEntry) => { clearTimeout(timeoutId); uni.hideLoading(); this.saveNameConfig(); this.scanMediaFile(newEntry.fullPath,()=>{uni.showToast({title:'保存成功',icon:'success'})}) }, (e)=>{clearTimeout(timeoutId);uni.hideLoading();uni.showToast({title:`复制失败: ${e.message||e.code||'未知错误'}`,icon:'none',duration:3000})})
+					sourceEntry.copyTo(targetDirEntry, finalFileName, (newEntry) => { clearTimeout(timeoutId); uni.hideLoading(); this.saveNameConfig(); this.resetImageSelection(); this.scanMediaFile(newEntry.fullPath,()=>{uni.showToast({title:'保存成功',icon:'success'})}) }, (e)=>{clearTimeout(timeoutId);uni.hideLoading();uni.showToast({title:`复制失败: ${e.message||e.code||'未知错误'}`,icon:'none',duration:3000})})
 				})
 			}, (e)=>{clearTimeout(timeoutId);uni.hideLoading();uni.showToast({title:`访问源文件失败: ${e.message||e.code||'未知错误'}`,icon:'none',duration:3000})})
 		},
