@@ -297,6 +297,9 @@
 				</scroll-view>
 			</view>
 		</view>
+
+		<!-- 版本更新弹窗 -->
+		<update-dialog />
 	</view>
 </template>
 
@@ -307,8 +310,12 @@ import { API_BASE } from '@/config/base'
 
 const AEC_API_BASE = 'https://aec.kyrian.asia'
 import { checkUpdate } from '@/utils/update'
+import UpdateDialog from '@/components/update-dialog.vue'
 
 export default {
+	components: {
+		UpdateDialog
+	},
 	data() {
 		return {
 			statusBarHeight: 0,

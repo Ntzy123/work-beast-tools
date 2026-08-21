@@ -9,6 +9,10 @@ import { API_BASE } from '@/config/base'
 // 本地存储key
 const STORAGE_KEY_IGNORED = 'wbtools_ignored_versions'
 
+// 待展示的更新信息与全局弹窗回调（由 update-dialog.vue 注册）
+let pendingVersionInfo = null
+let dialogHandler = null
+
 /**
  * 获取本地版本信息
  * @returns {Object} { versionCode: number, versionName: string }
@@ -45,10 +49,10 @@ function getIgnoredVersions() {
 }
 
 /**
- * 添加版本到忽略列表
+ * 忽略指定版本，仅对该版本号生效
  * @param {number} versionCode
  */
-function addIgnoredVersion(versionCode) {
+export function ignoreCurrentVersion(versionCode) {
   const ignored = getIgnoredVersions()
   if (!ignored.includes(versionCode)) {
     ignored.push(versionCode)
@@ -93,7 +97,11 @@ function fetchLatestVersion() {
  * 打开浏览器下载链接
  * @param {string} url
  */
-function openDownloadUrl(url) {
+export function openDownloadUrl(url) {
+  if (!url) {
+    uni.showToast({ title: '下载地址未配置', icon: 'none', duration: 2000 })
+    return
+  }
   // #ifdef H5
   window.open(url, '_blank')
   // #endif
@@ -130,72 +138,16 @@ function openDownloadUrl(url) {
 }
 
 /**
- * 显示更新对话框
- * @param {Object} versionInfo - 服务器返回的版本信息
- * @param {Object} localInfo - 本地版本信息
+ * 注册更新弹窗回调（由 update-dialog.vue 调用）
+ * 若检测逻辑先于弹窗组件完成，会先暂存，注册时立即补触发
+ * @param {(versionInfo: Object) => void} handler
  */
-function showUpdateDialog(versionInfo /*, localInfo */) {
-  const { versionName, forceUpdate, updateDesc, downloadUrl } = versionInfo
-
-  if (!downloadUrl) {
-    uni.showToast({
-      title: '下载地址未配置',
-      icon: 'none',
-      duration: 2000
-    })
-    return
-  }
-
-  // 构建更新说明文本
-  let content = `发现新版本 ${versionName}\n\n`
-  if (updateDesc) {
-    content += updateDesc
-  }
-
-  if (forceUpdate) {
-    // 强制更新 - 只显示"去更新"按钮，不可关闭
-    uni.showModal({
-      title: '版本更新',
-      content: content,
-      showCancel: false,
-      confirmText: '去更新',
-      success: (res) => {
-        if (res.confirm) {
-          openDownloadUrl(downloadUrl)
-        }
-      }
-    })
-  } else {
-    // 非强制更新 - 取消后询问是否忽略该版本
-    uni.showModal({
-      title: '版本更新',
-      content: content,
-      cancelText: '取消',
-      confirmText: '立即更新',
-      success: (res) => {
-        if (res.confirm) {
-          openDownloadUrl(downloadUrl)
-        } else {
-          // 取消 - 提示是否忽略该版本
-          uni.showModal({
-            title: '提示',
-            content: '是否忽略该版本，以后不再提醒？',
-            cancelText: '否',
-            confirmText: '忽略该版本',
-            success: (res2) => {
-              if (res2.confirm) {
-                addIgnoredVersion(versionInfo.versionCode)
-                uni.showToast({
-                  title: '已忽略该版本',
-                  icon: 'success',
-                  duration: 2000
-                })
-              }
-            }
-          })
-        }
-      }
-    })
+export function onUpdateDialog(handler) {
+  dialogHandler = handler
+  if (pendingVersionInfo) {
+    const info = pendingVersionInfo
+    pendingVersionInfo = null
+    handler(info)
   }
 }
 
@@ -223,7 +175,7 @@ export async function checkUpdate(options = {}) {
       return
     }
 
-    // 检查是否被忽略
+    // 检查是否被忽略（精确匹配版本号，仅对当前版本生效）
     const ignoredVersions = getIgnoredVersions()
     if (ignoredVersions.includes(remoteInfo.versionCode)) {
       console.log('[Update] 该版本已被忽略，跳过更新提示')
@@ -232,7 +184,12 @@ export async function checkUpdate(options = {}) {
 
     // 比较版本号
     if (remoteInfo.versionCode > localInfo.versionCode) {
-      showUpdateDialog(remoteInfo, localInfo)
+      if (dialogHandler) {
+        dialogHandler(remoteInfo)
+      } else {
+        // 弹窗组件尚未挂载，先暂存，等注册后补触发
+        pendingVersionInfo = remoteInfo
+      }
     } else if (!silent) {
       uni.showToast({
         title: '已是最新版本',
