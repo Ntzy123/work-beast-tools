@@ -206,6 +206,8 @@ export default {
 			resultImage: '',
 			timeSpan: 10,
 			multiImageMode: 1,
+			batchFinished: false,
+			batchMode: false,
 			multiImageModeRange,
 			formData: {
 				name: '',
@@ -470,20 +472,63 @@ export default {
 		async generateWatermark() {
 			if (this.multiImageMode > 1) { this.generateMultiImageWatermarks() }
 			else if (this.imagePaths.length > 1) { this.generateBatchWatermarks() }
-			else { uni.showLoading({ title: '生成中...' }); this.drawWatermark() }
+			else {
+				const tf = this.resolveWatermarkTime()
+				// 用局部 form 传给绘制，避免修改 this.formData 触发 Vue 重渲染干扰 canvas 绘制
+				const batchForm = { name: this.formData.name, date: tf.date, time: tf.time }
+				uni.showLoading({ title: '生成中...' })
+				this.$nextTick(() => { this.drawWatermark(batchForm) })
+			}
+		},
+		// 多图/多倍生成结束后，把时间推进到本次跨度末尾，便于连续拍摄取下一个时间窗口
+		// 注意：单图模式下也有跨度随机偏移，但按需求只在多图/多倍模式推进时间
+		advanceToEndOfSpan() {
+			if (!this.batchMode && !(this.multiImageMode > 1 || this.imagePaths.length > 1)) return
+			const minutes = Math.round(Number(this.timeSpan))
+			if (!minutes || minutes <= 0) return
+			this.syncTimeToElapsed(minutes * 60)
+		},
+		// 把 "YYYY-MM-DD HH:mm:ss" 解析成 Date；Android 各版本对带秒的时间串解析不一致，手动拆解保证 APP 端兼容
+		parseFormTime(form) {
+			const f = form || this.formData
+			const [y, mo, d] = String(f.date).split('-').map(Number)
+			return new Date(y, (mo || 1) - 1, d || 1, Number(f.time.hour) || 0, Number(f.time.minute) || 0, Number(f.time.second) || 0)
+		},
+		// 单图 + 多图共用的时间计算：把分钟跨度随机拆到 [起点, 起点+跨度] 区间
+		buildTimeSlots(count, timeSpanMinutes) {
+			const timeSpanSeconds = Math.round(Number(timeSpanMinutes)) * 60, segmentSeconds = Math.floor(timeSpanSeconds / count)
+			const slots = []
+			for (let i = 0; i < count; i++) { const ss = i * segmentSeconds, se = (i + 1) * segmentSeconds - 1; slots.push(Math.floor(Math.random() * (se - ss + 1)) + ss) }
+			return slots
+		},
+		resolveWatermarkTime() {
+			const targetTime = new Date(this.parseFormTime().getTime() + this.buildTimeSlots(1, this.timeSpan)[0] * 1000)
+			return {
+				date: `${targetTime.getFullYear()}-${String(targetTime.getMonth() + 1).padStart(2, '0')}-${String(targetTime.getDate()).padStart(2, '0')}`,
+				time: { hour: String(targetTime.getHours()).padStart(2, '0'), minute: String(targetTime.getMinutes()).padStart(2, '0'), second: targetTime.getSeconds() }
+			}
+		},
+		syncTimeToElapsed(seconds) {
+			const t = new Date(this.parseFormTime().getTime() + seconds * 1000)
+			this.formData.date = `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`
+			// 逐字段赋值，避免整体替换对象后 picker 的 :value 绑定在 APP 端不同步
+			this.formData.time.hour = String(t.getHours()).padStart(2, '0')
+			this.formData.time.minute = String(t.getMinutes()).padStart(2, '0')
+			this.formData.time.second = t.getSeconds()
 		},
 		async generateMultiImageWatermarks() {
 			const sourceImages = this.imagePaths.length > 0 ? this.imagePaths : [this.imagePath]
 			const imageCount = sourceImages.length, repeatCount = this.multiImageMode, totalCount = imageCount * repeatCount
-			const timeSpanMinutes = Math.round(this.timeSpan), timeSpanSeconds = timeSpanMinutes * 60, segmentSeconds = Math.floor(timeSpanSeconds / totalCount)
-			const timeSlots = []
-			for (let i = 0; i < totalCount; i++) { const ss = i * segmentSeconds, se = (i+1)*segmentSeconds-1; timeSlots.push(Math.floor(Math.random() * (se - ss + 1)) + ss) }
+			const baseTime = this.parseFormTime()
+			const timeSlots = this.buildTimeSlots(totalCount, this.timeSpan)
+			// 完成标志：即使某张图失败/超时，也要推进时间，不能永久卡在旧时间
+			this.batchFinished = false
+			this.batchMode = true
 			uni.showLoading({ title: `生成中 0/${totalCount}` })
 			let currentIndex = 0
 			for (let repeatIdx = 0; repeatIdx < repeatCount; repeatIdx++) {
 				for (let imgIdx = 0; imgIdx < imageCount; imgIdx++) {
 					const sourceImage = sourceImages[imgIdx], timeOffset = timeSlots[currentIndex]
-					const baseTime = new Date(`${this.formData.date} ${this.formData.time.hour}:${this.formData.time.minute}:${String(this.formData.time.second).padStart(2,'0')}`)
 					const targetTime = new Date(baseTime.getTime() + timeOffset * 1000)
 					const td = `${targetTime.getFullYear()}-${String(targetTime.getMonth()+1).padStart(2,'0')}-${String(targetTime.getDate()).padStart(2,'0')}`
 					const th = String(targetTime.getHours()).padStart(2,'0'), tm = String(targetTime.getMinutes()).padStart(2,'0'), ts = targetTime.getSeconds()
@@ -498,13 +543,14 @@ export default {
 			}
 		},
 		async generateBatchWatermarks() {
-			const imageCount = this.imagePaths.length, timeSpanMinutes = Math.round(this.timeSpan), timeSpanSeconds = timeSpanMinutes * 60, segmentSeconds = Math.floor(timeSpanSeconds / imageCount)
-			const timeSlots = []
-			for (let i = 0; i < imageCount; i++) { const ss = i * segmentSeconds, se = (i+1)*segmentSeconds-1; timeSlots.push(Math.floor(Math.random() * (se - ss + 1)) + ss) }
+			const imageCount = this.imagePaths.length
+			const baseTime = this.parseFormTime()
+			const timeSlots = this.buildTimeSlots(imageCount, this.timeSpan)
+			this.batchFinished = false
+			this.batchMode = true
 			uni.showLoading({ title: `生成中 0/${imageCount}` })
 			for (let i = 0; i < imageCount; i++) {
 				const imagePath = this.imagePaths[i], timeOffset = timeSlots[i]
-				const baseTime = new Date(`${this.formData.date} ${this.formData.time.hour}:${this.formData.time.minute}:${String(this.formData.time.second).padStart(2,'0')}`)
 				const targetTime = new Date(baseTime.getTime() + timeOffset * 1000)
 				const td = `${targetTime.getFullYear()}-${String(targetTime.getMonth()+1).padStart(2,'0')}-${String(targetTime.getDate()).padStart(2,'0')}`
 				const th = String(targetTime.getHours()).padStart(2,'0'), tm = String(targetTime.getMinutes()).padStart(2,'0'), ts = targetTime.getSeconds()
@@ -621,10 +667,10 @@ export default {
 			ctx.lineTo(x, y + radius); ctx.arc(x + radius, y + radius, radius, Math.PI, 1.5 * Math.PI); ctx.closePath(); ctx.fill()
 		},
 		generateTimestampFileName() { const ds = this.formData.date; const [y,m,d] = ds.split('-'); return `${y}${m}${d}${this.formData.time.hour}${this.formData.time.minute}${this.formData.time.second}.jpg` },
-		generateExifDateTime() { const ds = this.formData.date; return `${ds.replace(/-/g, ':')} ${this.formData.time.hour}:${this.formData.time.minute}:${this.formData.time.second}` },
-		addExifToImage(base64Image) {
+		generateExifDateTime(customForm) { const f = customForm || this.formData; const ds = f.date; return `${ds.replace(/-/g, ':')} ${f.time.hour}:${f.time.minute}:${f.time.second}` },
+		addExifToImage(base64Image, customForm) {
 			try {
-				const exifDateTime = this.generateExifDateTime()
+				const exifDateTime = this.generateExifDateTime(customForm)
 				const zeroth = {}, exif = {}, gps = {}
 				exif[piexif.ExifIFD.DateTimeOriginal] = exifDateTime; exif[piexif.ExifIFD.DateTimeDigitized] = exifDateTime; zeroth[piexif.ImageIFD.DateTime] = exifDateTime
 				zeroth[piexif.ImageIFD.Software] = 'WatermarkTool'
@@ -632,13 +678,16 @@ export default {
 				const exifBytes = piexif.dump(exifObj); return piexif.insert(exifBytes, base64Image)
 			} catch (err) { return base64Image }
 		},
-		processImageWithExif(tempFilePath) {
+		processImageWithExif(tempFilePath, customForm) {
+			// 绘制用的是局部 form，EXIF 必须同步使用，否则水印与 EXIF 时间不一致
+			const form = customForm || this.formData
+			const finish = () => { uni.hideLoading(); this.saveImage() }
 			// #ifdef H5
 			if (tempFilePath.startsWith('data:image')) {
-				try { const b = this.addExifToImage(tempFilePath); this.resultImage = b; uni.hideLoading(); this.saveImage() }
-				catch (err) { this.resultImage = tempFilePath; uni.hideLoading(); this.saveImage() }
+				try { const b = this.addExifToImage(tempFilePath, form); this.resultImage = b; finish() }
+				catch (err) { this.resultImage = tempFilePath; finish() }
 			} else {
-				fetch(tempFilePath).then(r=>r.blob()).then(blob=>{const reader=new FileReader();reader.onload=(e)=>{try{const b=this.addExifToImage(e.target.result);this.resultImage=b;uni.hideLoading();this.saveImage()}catch(err){this.resultImage=tempFilePath;uni.hideLoading();this.saveImage()}};reader.readAsDataURL(blob)}).catch(()=>{this.resultImage=tempFilePath;uni.hideLoading();this.saveImage()})
+				fetch(tempFilePath).then(r=>r.blob()).then(blob=>{const reader=new FileReader();reader.onload=(e)=>{try{const b=this.addExifToImage(e.target.result, form);this.resultImage=b;finish()}catch(err){this.resultImage=tempFilePath;finish()}};reader.readAsDataURL(blob)}).catch(()=>{this.resultImage=tempFilePath;finish()})
 			}
 			// #endif
 			// #ifndef H5
@@ -647,18 +696,18 @@ export default {
 					const reader = new plus.io.FileReader()
 					reader.onloadend = (e) => {
 						try {
-							const base64 = e.target.result, base64WithExif = this.addExifToImage(base64)
+							const base64 = e.target.result, base64WithExif = this.addExifToImage(base64, form)
 							const newFileName = '_temp_exif_' + Date.now() + '.jpg'
 							const base64Data = base64WithExif.split(',')[1]
 							const byteCharacters = atob(base64Data), byteNumbers = new Array(byteCharacters.length)
 							for (let i = 0; i < byteCharacters.length; i++) byteNumbers[i] = byteCharacters.charCodeAt(i)
 							const byteArray = new Uint8Array(byteNumbers)
-							entry.filesystem.root.getFile(newFileName,{create:true},(newEntry)=>{newEntry.createWriter((writer)=>{writer.onwrite=()=>{this.resultImage=newEntry.toLocalURL();uni.hideLoading();this.saveImage()};writer.onerror=()=>{this.resultImage=tempFilePath;uni.hideLoading();this.saveImage()};writer.write(byteArray.buffer)})})
-						} catch(err) { this.resultImage=tempFilePath; uni.hideLoading(); this.saveImage() }
+							entry.filesystem.root.getFile(newFileName,{create:true},(newEntry)=>{newEntry.createWriter((writer)=>{writer.onwrite=()=>{this.resultImage=newEntry.toLocalURL();finish()};writer.onerror=()=>{this.resultImage=tempFilePath;finish()};writer.write(byteArray.buffer)})})
+						} catch(err) { this.resultImage=tempFilePath; finish() }
 					}
 					reader.readAsDataURL(file)
 				})
-			}, (err) => { this.resultImage=tempFilePath; uni.hideLoading(); this.saveImage() })
+			}, (err) => { this.resultImage=tempFilePath; finish() })
 			// #endif
 		},
 		processImageWithExifForBatch(tempFilePath, callback, isLast) {
@@ -685,14 +734,26 @@ export default {
 			// #endif
 		},
 		saveImageForBatch(imageData, callback, isLast) {
+			// 保存走的是异步系统调用，时间推进只认这个一次性标志，避免依赖 callback 时序
+			if (isLast) this.finishBatch()
 			// #ifdef H5
 			try { const link=document.createElement('a'); link.href=imageData; link.download=this.generateTimestampFileName(); document.body.appendChild(link); link.click(); document.body.removeChild(link) } catch(e) { console.error('保存失败', e) }
 			// #endif
 			// #ifndef H5
 			this.checkStoragePermissionAndSaveForBatch(imageData, callback, isLast)
 			// #endif
-			if (isLast) { uni.hideLoading(); this.saveNameConfig(); this.resetImageSelection(); uni.showToast({title:'全部生成完成',icon:'success'}) }
 			callback()
+		},
+		finishBatch() {
+			if (this.batchFinished) return
+			this.batchFinished = true
+			uni.hideLoading()
+			this.saveNameConfig()
+			// 先推进时间再清空图片：resetImageSelection 会清掉 imagePaths，之后无法再判断是否多图模式
+			this.advanceToEndOfSpan()
+			this.batchMode = false
+			this.resetImageSelection()
+			uni.showToast({ title: '全部生成完成', icon: 'success' })
 		},
 		// #ifndef H5
 		checkStoragePermissionAndSaveForBatch(imageData, callback, isLast) {
@@ -705,21 +766,24 @@ export default {
 		},
 		saveImageToCustomPathForBatch(imageData, callback, isLast) {
 			const fileName = this.generateTimestampFileName(), targetDir = '/storage/emulated/0/lebang/waterimages/'
+			// 所有出口都补 finishBatch：保存失败也要推进时间，不能永久卡在旧时间
+			const abort = () => { if (isLast) this.finishBatch(); callback() }
 			plus.io.resolveLocalFileSystemURL(targetDir, (dirEntry) => { this.copyFileToTargetForBatch(imageData, dirEntry, fileName, callback, isLast) }, () => {
 				plus.io.resolveLocalFileSystemURL('/storage/emulated/0/', (rootEntry) => {
-					rootEntry.getDirectory('lebang',{create:true},(lebangDir)=>{lebangDir.getDirectory('waterimages',{create:true},(waterDir)=>{this.copyFileToTargetForBatch(imageData,waterDir,fileName,callback,isLast)},()=>{callback()})},()=>{callback()})
-				}, () => { callback() })
+					rootEntry.getDirectory('lebang',{create:true},(lebangDir)=>{lebangDir.getDirectory('waterimages',{create:true},(waterDir)=>{this.copyFileToTargetForBatch(imageData,waterDir,fileName,callback,isLast)},abort)},abort)
+				}, abort)
 			})
 		},
 		copyFileToTargetForBatch(imageData, targetDirEntry, fileName, callback, isLast) {
+			const onFail = () => { if (isLast) this.finishBatch(); callback() }
 			plus.io.resolveLocalFileSystemURL(imageData, (sourceEntry) => {
 				this.findAvailableFileName(targetDirEntry, fileName, (finalFileName) => {
-					sourceEntry.copyTo(targetDirEntry, finalFileName, (newEntry) => { this.scanMediaFile(newEntry.fullPath, () => { callback() }) }, () => { callback() })
+					sourceEntry.copyTo(targetDirEntry, finalFileName, (newEntry) => { if (isLast) this.finishBatch(); this.scanMediaFile(newEntry.fullPath, () => { callback() }) }, onFail)
 				})
-			}, () => { callback() })
+			}, onFail)
 		},
 		// #endif
-		async drawWatermark() {
+		async drawWatermark(customForm) {
 			await this.waitForFont()
 			uni.getImageInfo({ src: this.imagePath, success: (imageInfo) => {
 				const targetWidth = 1080, targetHeight = (imageInfo.height / imageInfo.width) * targetWidth
@@ -729,7 +793,7 @@ export default {
 					const scale = targetWidth / 750
 					// 使用原始 tempFilePath 绘制（imageInfo.path 在 App 端可能是 file://，canvas drawImage 不可靠）
 					ctx.drawImage(this.imagePath, 0, 0, targetWidth, targetHeight)
-					this.drawWatermarkContent(ctx, targetWidth, targetHeight, scale)
+					this.drawWatermarkContent(ctx, targetWidth, targetHeight, scale, customForm)
 					ctx.draw(false, () => {
 						let delay = 500;
 						// #ifdef APP-PLUS
@@ -739,7 +803,7 @@ export default {
 						delay = 300
 						// #endif
 						setTimeout(() => {
-							uni.canvasToTempFilePath({ canvasId: 'watermarkCanvas', width: targetWidth, height: targetHeight, destWidth: targetWidth, destHeight: targetHeight, fileType: 'jpg', quality: 0.9, success: (res) => { this.processImageWithExif(res.tempFilePath) }, fail: (err) => { uni.hideLoading(); uni.showToast({title:'生成失败',icon:'none'}) } }, this)
+							uni.canvasToTempFilePath({ canvasId: 'watermarkCanvas', width: targetWidth, height: targetHeight, destWidth: targetWidth, destHeight: targetHeight, fileType: 'jpg', quality: 0.9, success: (res) => { this.processImageWithExif(res.tempFilePath, customForm) }, fail: (err) => { uni.hideLoading(); uni.showToast({title:'生成失败',icon:'none'}) } }, this)
 						}, delay)
 					})
 				})
@@ -748,7 +812,7 @@ export default {
 		saveImage() {
 			if (!this.resultImage) return
 			// #ifdef H5
-			try { const link=document.createElement('a'); link.href=this.resultImage; link.download=this.generateTimestampFileName(); document.body.appendChild(link); link.click(); document.body.removeChild(link); this.saveNameConfig(); this.resetImageSelection(); uni.showToast({title:'保存成功',icon:'success'}) } catch(e) { uni.showToast({title:`下载失败: ${e.message||'未知错误'}`,icon:'none',duration:3000}) }
+			try { const link=document.createElement('a'); link.href=this.resultImage; link.download=this.generateTimestampFileName(); document.body.appendChild(link); link.click(); document.body.removeChild(link); this.saveNameConfig(); this.resetImageSelection(); this.advanceToEndOfSpan(); uni.showToast({title:'保存成功',icon:'success'}) } catch(e) { uni.showToast({title:`下载失败: ${e.message||'未知错误'}`,icon:'none',duration:3000}) }
 			// #endif
 			// #ifndef H5
 			this.checkStoragePermissionAndSave()
@@ -782,7 +846,10 @@ export default {
 		copyFileToTarget(timeoutId, targetDirEntry, fileName) {
 			plus.io.resolveLocalFileSystemURL(this.resultImage, (sourceEntry) => {
 				this.findAvailableFileName(targetDirEntry, fileName, (finalFileName) => {
-					sourceEntry.copyTo(targetDirEntry, finalFileName, (newEntry) => { clearTimeout(timeoutId); uni.hideLoading(); this.saveNameConfig(); this.resetImageSelection(); this.scanMediaFile(newEntry.fullPath,()=>{uni.showToast({title:'保存成功',icon:'success'})}) }, (e)=>{clearTimeout(timeoutId);uni.hideLoading();uni.showToast({title:`复制失败: ${e.message||e.code||'未知错误'}`,icon:'none',duration:3000})})
+					sourceEntry.copyTo(targetDirEntry, finalFileName, (newEntry) => {
+						clearTimeout(timeoutId); uni.hideLoading(); this.saveNameConfig(); this.resetImageSelection(); this.advanceToEndOfSpan()
+						this.scanMediaFile(newEntry.fullPath,()=>{uni.showToast({title:'保存成功',icon:'success'})})
+					}, (e)=>{clearTimeout(timeoutId);uni.hideLoading();uni.showToast({title:`复制失败: ${e.message||e.code||'未知错误'}`,icon:'none',duration:3000})})
 				})
 			}, (e)=>{clearTimeout(timeoutId);uni.hideLoading();uni.showToast({title:`访问源文件失败: ${e.message||e.code||'未知错误'}`,icon:'none',duration:3000})})
 		},
