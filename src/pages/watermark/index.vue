@@ -473,15 +473,15 @@ export default {
 			if (this.multiImageMode > 1) { this.generateMultiImageWatermarks() }
 			else if (this.imagePaths.length > 1) { this.generateBatchWatermarks() }
 			else {
-				const tf = this.resolveWatermarkTime()
-				// 用局部 form 传给绘制，避免修改 this.formData 触发 Vue 重渲染干扰 canvas 绘制
-				const batchForm = { name: this.formData.name, date: tf.date, time: tf.time }
+				// 单图：严格使用用户指定的时间，不做跨度随机（跨度只用于多图/多倍模式）
+				const f = this.formData
+				const batchForm = { name: f.name, date: f.date, time: { hour: f.time.hour, minute: f.time.minute, second: f.time.second } }
 				uni.showLoading({ title: '生成中...' })
 				this.$nextTick(() => { this.drawWatermark(batchForm) })
 			}
 		},
 		// 多图/多倍生成结束后，把时间推进到本次跨度末尾，便于连续拍摄取下一个时间窗口
-		// 注意：单图模式下也有跨度随机偏移，但按需求只在多图/多倍模式推进时间
+		// 单图不使用跨度，故不推进，保留用户指定的时间不变
 		advanceToEndOfSpan() {
 			if (!this.batchMode && !(this.multiImageMode > 1 || this.imagePaths.length > 1)) return
 			const minutes = Math.round(Number(this.timeSpan))
@@ -494,19 +494,12 @@ export default {
 			const [y, mo, d] = String(f.date).split('-').map(Number)
 			return new Date(y, (mo || 1) - 1, d || 1, Number(f.time.hour) || 0, Number(f.time.minute) || 0, Number(f.time.second) || 0)
 		},
-		// 单图 + 多图共用的时间计算：把分钟跨度随机拆到 [起点, 起点+跨度] 区间
+		// 多图/多倍共用：把分钟跨度随机拆成 count 段，每段内取一个随机时间点
 		buildTimeSlots(count, timeSpanMinutes) {
 			const timeSpanSeconds = Math.round(Number(timeSpanMinutes)) * 60, segmentSeconds = Math.floor(timeSpanSeconds / count)
 			const slots = []
 			for (let i = 0; i < count; i++) { const ss = i * segmentSeconds, se = (i + 1) * segmentSeconds - 1; slots.push(Math.floor(Math.random() * (se - ss + 1)) + ss) }
 			return slots
-		},
-		resolveWatermarkTime() {
-			const targetTime = new Date(this.parseFormTime().getTime() + this.buildTimeSlots(1, this.timeSpan)[0] * 1000)
-			return {
-				date: `${targetTime.getFullYear()}-${String(targetTime.getMonth() + 1).padStart(2, '0')}-${String(targetTime.getDate()).padStart(2, '0')}`,
-				time: { hour: String(targetTime.getHours()).padStart(2, '0'), minute: String(targetTime.getMinutes()).padStart(2, '0'), second: targetTime.getSeconds() }
-			}
 		},
 		syncTimeToElapsed(seconds) {
 			const t = new Date(this.parseFormTime().getTime() + seconds * 1000)
