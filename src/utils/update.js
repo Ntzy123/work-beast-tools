@@ -61,6 +61,18 @@ export function ignoreCurrentVersion(versionCode) {
 }
 
 /**
+ * 清理已安装版本及更早的忽略记录，避免忽略列表无限增长
+ * @param {number} localVersionCode
+ */
+function pruneIgnoredVersions(localVersionCode) {
+  const ignored = getIgnoredVersions()
+  const kept = ignored.filter((code) => code > localVersionCode)
+  if (kept.length !== ignored.length) {
+    uni.setStorageSync(STORAGE_KEY_IGNORED, JSON.stringify(kept))
+  }
+}
+
+/**
  * 从服务器获取最新版本信息
  * @returns {Promise<Object|null>}
  */
@@ -175,27 +187,35 @@ export async function checkUpdate(options = {}) {
       return
     }
 
-    // 检查是否被忽略（精确匹配版本号，仅对当前版本生效）
-    const ignoredVersions = getIgnoredVersions()
-    if (ignoredVersions.includes(remoteInfo.versionCode)) {
-      console.log('[Update] 该版本已被忽略，跳过更新提示')
+    // 比较版本号：线上不高于本地视为已是最新
+    if (remoteInfo.versionCode <= localInfo.versionCode) {
+      if (!silent) {
+        uni.showToast({
+          title: '已是最新版本',
+          icon: 'success',
+          duration: 2000
+        })
+      }
       return
     }
 
-    // 比较版本号
-    if (remoteInfo.versionCode > localInfo.versionCode) {
-      if (dialogHandler) {
-        dialogHandler(remoteInfo)
-      } else {
-        // 弹窗组件尚未挂载，先暂存，等注册后补触发
-        pendingVersionInfo = remoteInfo
+    // 清理已安装版本及更早的忽略记录
+    pruneIgnoredVersions(localInfo.versionCode)
+
+    // 忽略列表仅对非强制更新生效，强制更新不可被跳过
+    if (!remoteInfo.forceUpdate) {
+      const ignoredVersions = getIgnoredVersions()
+      if (ignoredVersions.includes(remoteInfo.versionCode)) {
+        console.log('[Update] 该版本已被忽略，跳过更新提示')
+        return
       }
-    } else if (!silent) {
-      uni.showToast({
-        title: '已是最新版本',
-        icon: 'success',
-        duration: 2000
-      })
+    }
+
+    if (dialogHandler) {
+      dialogHandler(remoteInfo)
+    } else {
+      // 弹窗组件尚未挂载，先暂存，等注册后补触发
+      pendingVersionInfo = remoteInfo
     }
   } catch (error) {
     console.error('[Update] 检查更新失败:', error)
