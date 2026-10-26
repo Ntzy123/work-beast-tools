@@ -19,8 +19,6 @@ src/static/images/*.jpg
 src/static/images/*.jpeg
 unpackage/*
 
-package-lock.json
-
 # Editor directories and files
 .idea
 *.suo

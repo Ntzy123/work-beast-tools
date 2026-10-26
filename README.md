@@ -29,10 +29,27 @@ docs/                 协议、接口、设计文档
 scripts/svg-to-png.mjs  SVG → PNG 图标生成
 ```
 
+## 环境要求
+
+| 项 | 版本 |
+|----|------|
+| Node.js | **24.12.0**（本机实测版本，换版本前先在干净目录试装） |
+| npm | **11.6.2**（会升级 lockfile 结构的 npm 大版本不要用） |
+| 包管理器 | 仅 npm，**不要用 pnpm / yarn** |
+| Registry | 官方源 `https://registry.npmjs.org/`（已写入 `.npmrc`） |
+
+`package-lock.json` 由仓库统一维护，**提交前不要让它出现改动**。以下操作会污染 lock、制造无意义的千行 diff：
+
+- 切换 registry 镜像（npmmirror、公司私服等），会让全文件 `resolved` 地址变化
+- 用 pnpm / yarn 安装，或混用不同大版本 npm
+- 在不同操作系统上无谓地重装依赖（lock 中有 80+ 条平台相关的可选二进制依赖）
+
+真有依赖需要升级时，单独开一个提交，并在此注明 Node / npm 版本。
+
 ## 快速开始
 
 ```bash
-npm install          # lock 文件不入库，会现场生成
+npm install          # 第一次会自动生成 node_modules，lock 应保持无改动
 npm run icons        # 必做：由 SVG 生成 src/static/images/*.png
 npm run dev:h5       # 浏览器调试
 npm run build:h5     # H5 构建
@@ -42,7 +59,7 @@ npm run build:h5     # H5 构建
 
 App 端请用 **HBuilderX** 打开项目根目录，运行到手机或云打包（CLI 未提供 app 构建脚本）。
 
-其余被忽略的只有 `node_modules/`、`unpackage/`（构建产物）和 `package-lock.json`，都无需移植。
+其余被忽略的只有 `node_modules/` 和 `unpackage/`（构建产物），都无需移植。
 
 ## 用户配置建议
 
