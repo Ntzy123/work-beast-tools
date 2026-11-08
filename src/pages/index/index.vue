@@ -182,7 +182,7 @@
 							v-for="(item, index) in formatDecryptedData(scanResult.decrypted)" 
 							:key="index"
 						>
-							<text class="decrypted-item-label">{{ item.label }}：</text>
+							<text class="decrypted-item-label">{{ item.label }}</text>
 							<text class="decrypted-item-value" :class="{ 'location-value': item.label === '定位' }" selectable>{{ item.value }}</text>
 						</view>
 					</view>
@@ -586,11 +586,16 @@ export default {
 			this.closeScanModal()
 			setTimeout(() => { this.openExternalUrl(url) }, 300)
 		},
+		buildScanCopyText() {
+			const items = this.scanResult.isEncrypted && this.scanResult.decrypted ? this.formatDecryptedData(this.scanResult.decrypted) : []
+			if (!items.length) return this.scanResult.result
+			return items.map(i => `${i.label}：${i.value}`).join('\n')
+		},
 		copyScanResult() {
-			const content = this.scanResult.result
+			const content = this.buildScanCopyText()
 			uni.setClipboardData({
 				data: content,
-				success: () => { uni.showToast({ title: '已复制到剪贴板', icon: 'success', duration: 2000 }); this.closeScanModal() },
+				success: () => { uni.showToast({ title: '复制成功', icon: 'none', duration: 1500 }) },
 				fail: () => { uni.showToast({ title: '复制失败', icon: 'none', duration: 2000 }) }
 			})
 		},
@@ -1376,8 +1381,14 @@ export default {
 .decrypted-item {
 	margin-bottom: 12px; padding: 14px; background: #f8f9fa; border-radius: 12px; border-left: 3px solid #7c5cfc;
 }
-.decrypted-item-label { font-size: 14px; font-weight: 600; color: #1a1a2e; margin-bottom: 6px; }
-.decrypted-item-value { font-size: 15px; color: #7c5cfc; font-weight: 500; word-break: break-all; user-select: text; }
+.decrypted-item-label {
+	display: block; font-size: 14px; font-weight: 600; color: #1a1a2e; margin-bottom: 6px;
+	user-select: none; -webkit-user-select: none;
+}
+.decrypted-item-value {
+	display: block; font-size: 15px; color: #7c5cfc; font-weight: 500; word-break: break-all;
+	user-select: text; -webkit-user-select: text;
+}
 .decrypted-item-value.location-value { white-space: pre-line; line-height: 1.8; }
 
 .decrypt-failed { padding: 16px; background: #fff8e6; border-radius: 12px; border-left: 3px solid #f59e0b; }
